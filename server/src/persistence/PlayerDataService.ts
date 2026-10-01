@@ -25,6 +25,11 @@ export function isValidPosition(p: unknown): p is { x: number; y: number; z: num
 export class PlayerDataService {
   constructor(readonly store: PlayerDataStore, private starterSummons: string[]) {}
 
+  /** In-memory record for a guest (no valid playerId): same defaults, never saved. */
+  ephemeral(guestId: string): PlayerData {
+    return { ...this.fresh(guestId), friendCode: '' };
+  }
+
   /** Existing data for this id, or a fresh record. */
   loadOrCreate(playerId: string): { data: PlayerData; isNew: boolean } {
     const existing = this.store.get(playerId);
@@ -32,7 +37,13 @@ export class PlayerDataService {
       this.migrate(existing);
       return { data: existing, isNew: false };
     }
-    const data: PlayerData = {
+    const data = this.fresh(playerId);
+    this.store.put(data);
+    return { data, isNew: true };
+  }
+
+  private fresh(playerId: string): PlayerData {
+    return {
       playerId,
       friendCode: this.newFriendCode(),
       displayName: `Player_${randomInt(1000, 10000)}`,
@@ -47,8 +58,6 @@ export class PlayerDataService {
       outgoingRequests: [],
       lastSeen: Date.now(),
     };
-    this.store.put(data);
-    return { data, isNew: true };
   }
 
   /** Saved position if it is valid, else null (the caller then uses the default spawn). */
@@ -60,13 +69,12 @@ export class PlayerDataService {
     if (!isValidPosition({ x, y, z })) return;
     data.lastPosition = { x, y, z };
     data.lastRotation = Number.isFinite(yaw) ? yaw : 0;
-    data.lastSeen = Date.now();
-    this.store.put(data);
+    this.save(data);
   }
 
   save(data: PlayerData): void {
     data.lastSeen = Date.now();
-    this.store.put(data);
+    if (data.friendCode) this.store.put(data); // guests (no friend code) are never stored
   }
 
   private newFriendCode(): string {

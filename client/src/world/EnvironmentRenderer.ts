@@ -25,7 +25,7 @@ interface ModelBatch {
 }
 
 /** Models that cast shadows (big vertical things). Ground tiles only receive. */
-const CASTS_SHADOW = /^(building_|trees_|tree_|mountain_|hill|rock_|barrel|crate|tent|wheelbarrow|flag)/;
+const CASTS_SHADOW = /^(building_|trees_|tree_|mountain_|hill|rock_|barrel|crate|tent|wheelbarrow|flag|poi\/)/;
 
 const tmpM = new THREE.Matrix4();
 const tmpQ = new THREE.Quaternion();
@@ -132,8 +132,8 @@ export class EnvironmentRenderer {
       this.group.remove(m);
       m.dispose();
     }
-    b.meshes = env.geometries.map((g) => {
-      const m = new THREE.InstancedMesh(g, this.assets.envMaterial, capacity);
+    b.meshes = env.geometries.map((g, i) => {
+      const m = new THREE.InstancedMesh(g, env.materials[i] ?? this.assets.envMaterial, capacity);
       m.name = model;
       m.count = 0;
       m.receiveShadow = true;

@@ -25,7 +25,7 @@
 
     <div id="loading" class="loading hidden"><div class="loading-box"><div class="loading-title">Chargement du monde…</div><div class="bar"><div id="loading-bar"></div></div><div id="loading-text"></div></div></div>
     <div id="status" class="status hidden"></div>
-    <div id="hint" class="hint hidden">Clic : caméra · ZQSD/WASD : marcher · Maj : courir · Espace : sauter · Entrée : chat · 1 2 3 : emotes · M : carte · Tab : joueurs · F3 : debug</div>
+    <div id="hint" class="hint hidden">Clic : caméra · ZQSD/WASD : marcher · Maj : courir · Espace : sauter · Entrée : chat · 1 2 3 : emotes · B : invocations · X : invoquer · M : carte · Tab : joueurs · F3 : debug</div>
     <pre id="debug" class="debug hidden"></pre>
 
     <div id="chat" class="chat hidden">
@@ -34,6 +34,22 @@
     </div>
     <canvas id="minimap" class="minimap hidden" width="200" height="200"></canvas>
     <div id="players" class="players hidden"></div>
+
+    <div id="topbar" class="topbar hidden">
+      <button id="btn-summons" title="Invocations (B)">Invocations</button>
+      <button id="btn-friends" title="Amis (F)">Amis</button>
+      <button id="btn-mute" title="Son">🔊</button>
+    </div>
+    <div id="summon-hud" class="summon-hud hidden"><span class="sh-name"></span><div class="hpbar"><div></div></div><span class="sh-state"></span></div>
+
+    <div id="summons-panel" class="panel summons-panel hidden">
+      <div class="panel-head"><b>Invocations</b><button class="sp-close" aria-label="Fermer">✕</button></div>
+      <div class="sp-reveal hidden"></div>
+      <div class="sp-body">
+        <div class="sp-left"><div class="sp-grid"></div><button class="sp-draw">Invocation gratuite</button></div>
+        <div class="sp-right"><canvas class="sp-preview" width="240" height="220"></canvas><div class="sp-info"></div></div>
+      </div>
+    </div>
 
     <div id="error" class="error hidden"><div class="error-box"><div class="error-title" id="error-title"></div><div id="error-text"></div><button id="error-retry">Réessayer</button></div></div>
     <script type="module" src="/src/main.ts"></script>

@@ -13,7 +13,7 @@
  */
 import type { Rapier } from '@openworld/shared';
 import {
-  Anim, PHYSICS_RADIUS, PhysicsWorld, physicsRegionOf, chunkCoord, chunkKey, createCharacterState, generateChunk, stepCharacter,
+  Anim, PHYSICS_RADIUS, PhysicsWorld, TICK_DT, moveBody, physicsRegionOf, type Body, chunkCoord, chunkKey, createCharacterState, generateChunk, stepCharacter,
   type CharacterState, type ChunkData, type PlayerInput,
 } from '@openworld/shared';
 
@@ -32,24 +32,30 @@ type Collider = ReturnType<PhysicsWorld['createCharacterCollider']>;
 interface Region {
   key: string;
   physics: PhysicsWorld;
-  players: Set<SimPlayer>;
+  bodies: Set<SimBody>;
 }
 
-export interface SimPlayer {
+/** Anything moved by the character controller on the server (players, summons). */
+export interface SimBody {
   id: string;
+  state: Body & { yaw: number };
+  region: Region | null;
+  collider: Collider | null;
+}
+
+export interface SimPlayer extends SimBody {
   state: CharacterState;
   queue: PlayerInput[];
   lastSeq: number;
   budget: number;
   /** Ticks since the last processed input (client paused, tab hidden, lag...). */
   starved: number;
-  region: Region | null;
-  collider: Collider | null;
 }
 
 export class ServerSimulation {
   private regions = new Map<string, Region>();
   private players = new Map<string, SimPlayer>();
+  private bodies = new Map<string, SimBody>();
   /** Small cache so chunks needed by several regions/players are generated once. */
   private chunkCache = new Map<string, ChunkData>();
 
@@ -65,8 +71,37 @@ export class ServerSimulation {
     return p;
   }
 
+  /** A non-player body (summon...). Not driven by inputs: move it with moveBody(). */
+  addBody(id: string, x: number, z: number, y = 0.05): SimBody {
+    const b: SimBody = { id, state: { x, y, z, vy: 0, grounded: false, yaw: 0 }, region: null, collider: null };
+    this.bodies.set(id, b);
+    this.updateRegion(b);
+    this.moveToFreeSpot(b);
+    return b;
+  }
+
+  removeBody(id: string): void {
+    const b = this.bodies.get(id);
+    if (!b) return;
+    this.leaveRegion(b);
+    this.bodies.delete(id);
+  }
+
+  /** Moves a body with a horizontal velocity for one tick (collisions, gravity, steps). */
+  moveBody(b: SimBody, vx: number, vz: number, dt = TICK_DT): void {
+    this.updateRegion(b);
+    moveBody(b.region!.physics, b.collider!, b.state, vx, vz, dt);
+  }
+
+  /** Places a body at the free spot closest to (x, z). */
+  teleport(b: SimBody, x: number, z: number, y = 0.05): void {
+    b.state.x = x; b.state.z = z; b.state.y = y; b.state.vy = 0;
+    this.updateRegion(b);
+    this.moveToFreeSpot(b);
+  }
+
   /** Spiral search for the closest spot where the character doesn't overlap a house, tree, lake... */
-  private moveToFreeSpot(p: SimPlayer): void {
+  private moveToFreeSpot(p: SimBody): void {
     const x0 = p.state.x, z0 = p.state.z;
     for (let ring = 0; ring <= 40; ring++) {
       const n = Math.max(1, ring * 6);
@@ -121,21 +156,21 @@ export class ServerSimulation {
   get stats() {
     let chunks = 0;
     for (const r of this.regions.values()) chunks += r.physics.chunkCount;
-    return { players: this.players.size, regions: this.regions.size, chunks };
+    return { players: this.players.size, bodies: this.bodies.size, regions: this.regions.size, chunks };
   }
 
   // ------------------------------------------------------------------ regions
 
-  private updateRegion(p: SimPlayer): void {
+  private updateRegion(p: SimBody): void {
     const { key, originX, originZ } = physicsRegionOf(p.state.x, p.state.z);
     if (p.region?.key !== key) {
       this.leaveRegion(p);
       let region = this.regions.get(key);
       if (!region) {
-        region = { key, physics: new PhysicsWorld(this.rapier, originX, originZ), players: new Set() };
+        region = { key, physics: new PhysicsWorld(this.rapier, originX, originZ), bodies: new Set() };
         this.regions.set(key, region);
       }
-      region.players.add(p);
+      region.bodies.add(p);
       p.region = region;
       p.collider = region.physics.createCharacterCollider();
     }
@@ -149,14 +184,14 @@ export class ServerSimulation {
     }
   }
 
-  private leaveRegion(p: SimPlayer): void {
+  private leaveRegion(p: SimBody): void {
     const region = p.region;
     if (!region) return;
     if (p.collider) region.physics.removeCollider(p.collider);
-    region.players.delete(p);
+    region.bodies.delete(p);
     p.region = null;
     p.collider = null;
-    if (region.players.size === 0) {
+    if (region.bodies.size === 0) {
       region.physics.free();
       this.regions.delete(region.key);
     }
@@ -166,7 +201,7 @@ export class ServerSimulation {
   private collectChunks(): void {
     for (const region of this.regions.values()) {
       const keep = new Set<string>();
-      for (const p of region.players) {
+      for (const p of region.bodies) {
         const cx = chunkCoord(p.state.x), cz = chunkCoord(p.state.z);
         const r = PHYSICS_RADIUS + 1;
         for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) keep.add(chunkKey(cx + dx, cz + dz));

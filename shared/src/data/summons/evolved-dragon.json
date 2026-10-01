@@ -1,0 +1,79 @@
+{
+  "id": "evolved-dragon",
+  "name": "Dragon",
+  "rarity": "legendary",
+  "role": "ranged",
+  "model": "summons/evolved-dragon.glb",
+  "scale": 0.6,
+  "description": "Créature volante légendaire qui crache des boules de feu.",
+  "stats": {
+    "maxHp": 140,
+    "speed": 6.0,
+    "attack": 14,
+    "defense": 10
+  },
+  "animations": {
+    "idle": "Flying_Idle",
+    "walk": "Flying_Idle",
+    "run": "Fast_Flying",
+    "attack": "Headbutt",
+    "special": "Punch",
+    "hit": "HitReact",
+    "death": "Death",
+    "spawn": "Flying_Idle",
+    "cheer": "Yes"
+  },
+  "flying": true,
+  "abilities": [
+    {
+      "id": "fireball",
+      "name": "Boule de feu",
+      "key": "M1",
+      "type": "projectile",
+      "cooldown": 1.0,
+      "damage": 11,
+      "range": 16,
+      "projectileSpeed": 20,
+      "animation": "special",
+      "vfx": "fireball",
+      "sound": "projectile"
+    },
+    {
+      "id": "dive",
+      "name": "Piqué",
+      "key": "Q",
+      "type": "dash",
+      "cooldown": 5,
+      "damage": 16,
+      "range": 12,
+      "animation": "run",
+      "vfx": "dust",
+      "sound": "dash"
+    },
+    {
+      "id": "dragon_scales",
+      "name": "Écailles",
+      "key": "E",
+      "type": "buff",
+      "cooldown": 12,
+      "stat": "defense",
+      "amount": 30,
+      "duration": 6,
+      "animation": "cheer",
+      "vfx": "aura",
+      "sound": "buff"
+    },
+    {
+      "id": "inferno",
+      "name": "Inferno",
+      "key": "R",
+      "type": "aoe",
+      "cooldown": 24,
+      "damage": 48,
+      "radius": 6,
+      "animation": "attack",
+      "vfx": "explosion",
+      "sound": "aoe"
+    }
+  ]
+}

@@ -18,8 +18,8 @@ await RAPIER.init();
 const loaded = new Set<string>();
 const fakeAssets = {
   envMaterial: new THREE.MeshBasicMaterial(),
-  getEnv: (name: string): EnvModel | undefined => (loaded.has(name) ? { name, geometries: [new THREE.BoxGeometry()] } : undefined),
-  loadEnv: async (name: string) => { loaded.add(name); return { name, geometries: [new THREE.BoxGeometry()] }; },
+  getEnv: (name: string): EnvModel | undefined => (loaded.has(name) ? { name, geometries: [new THREE.BoxGeometry()], materials: [new THREE.MeshBasicMaterial()] } : undefined),
+  loadEnv: async (name: string) => { loaded.add(name); return { name, geometries: [new THREE.BoxGeometry()], materials: [new THREE.MeshBasicMaterial()] }; },
 } as unknown as AssetLibrary;
 
 const flushAsync = () => new Promise((r) => setTimeout(r, 0));

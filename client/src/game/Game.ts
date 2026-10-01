@@ -15,6 +15,11 @@ import { PlayerController } from '../player/PlayerController.ts';
 import { RemotePlayer } from '../player/RemotePlayer.ts';
 import { WorldManager } from '../world/WorldManager.ts';
 import { Minimap } from '../world/Minimap.ts';
+import { VFXManager } from '../vfx/VFXManager.ts';
+import { AudioManager } from '../audio/AudioManager.ts';
+import { SummonsClient } from '../summons/SummonsClient.ts';
+import { SummonsPanel } from '../ui/SummonsPanel.ts';
+import type { NetSummon } from '../summons/SummonView.ts';
 import { ChatBox, NameTag, PlayerList, compass } from './social.ts';
 import type { PlayerProfile } from './EntryScreen.ts';
 import { ui } from './ui.ts';
@@ -46,6 +51,11 @@ export class Game {
   /** Players already announced in the chat ("X a rejoint le monde"). */
   private announced = new Map<string, string>();
   private hudTime = 0;
+  readonly vfx = new VFXManager();
+  readonly audio = new AudioManager();
+  private summons!: SummonsClient;
+  private summonsPanel!: SummonsPanel;
+  private lastSummons: NetSummon[] = [];
   private pendingToast: string | null = null;
   private input!: Input;
   private net: NetworkManager;
@@ -69,10 +79,11 @@ export class Game {
 
   constructor(private container: HTMLElement) {
     this.net = new NetworkManager({
-      onSnapshot: (players, t) => this.onSnapshot(players, t),
+      onSnapshot: (players, t, summons) => { this.lastSummons = summons; this.onSnapshot(players, t); },
       onPlayerLeft: (id) => this.removeRemote(id),
       onConnectionChange: (s) => this.onConnectionChange(s),
       onChat: (m) => this.onChat(m),
+      onCollection: (c) => this.summonsPanel?.setCollection(c),
       onProfile: (p) => { if (p.restored) this.pendingToast = 'Position précédente restaurée'; },
     });
   }
@@ -84,6 +95,17 @@ export class Game {
     this.input.onEmote = (n) => this.emote(n as Emote);
     this.input.onToggleMap = () => { if (!this.chat?.isOpen) this.minimap.visible = !this.minimap.visible; };
     this.input.onPlayerList = (show) => { this.playerList.visible = show; if (show) this.updateHud(true); };
+    this.input.onKeyPress = (code) => this.onKey(code);
+    this.scene.add(this.vfx.group);
+    this.summons = new SummonsClient(this.scene, this.assets, this.vfx, this.audio, () => this.net.sessionId,
+      (id) => this.lastSnapshot.find((p) => p.id === id)?.name ?? '?', (e) => this.fail('Ressource introuvable', e instanceof Error ? e.message : String(e)));
+    this.summonsPanel = new SummonsPanel(this.assets, this.audio, {
+      select: (id) => this.net.sendSummon({ op: 'select', id }),
+      call: () => this.net.sendSummon({ op: 'call' }),
+      dismiss: () => this.net.sendSummon({ op: 'dismiss' }),
+      draw: () => this.net.sendSummon({ op: 'draw' }),
+      isOut: () => !!this.summons.mine(),
+    });
 
     ui.loading(0.02, 'Initialisation de la physique…');
     await RAPIER.init();
@@ -123,6 +145,12 @@ export class Game {
     this.chat.add('', `Bienvenue ${me.name} ! ${this.lastSnapshot.length - 1} autre(s) joueur(s) dans le monde.`, true);
     if (this.pendingToast) this.chat.add('', this.pendingToast, true);
     this.minimap.visible = true;
+    const top = document.getElementById('topbar')!;
+    top.classList.remove('hidden');
+    document.getElementById('btn-summons')!.onclick = () => { this.audio.play('click'); this.summonsPanel.toggle(); };
+    const mute = document.getElementById('btn-mute')!;
+    mute.textContent = this.audio.muted ? '🔇' : '🔊';
+    mute.onclick = () => { mute.textContent = this.audio.toggleMute() ? '🔇' : '🔊'; };
 
     ui.hideLoading();
     ui.status('Connecté', true);
@@ -190,8 +218,13 @@ export class Game {
 
   // ---------------------------------------------------------------- network
 
+  private lastSummonsT = 0;
+  private summonsDirty = false;
+
   private onSnapshot(players: NetPlayer[], t: number): void {
     this.lastSnapshot = players;
+    this.lastSummonsT = t;
+    this.summonsDirty = true;
     if (!this.player) return;
     for (const p of players) {
       if (p.id === this.net.sessionId) {
@@ -214,6 +247,18 @@ export class Game {
     this.chat.add(m.name, m.text);
     if (m.id === this.net.sessionId) this.myTag?.say(m.text);
     else this.tags.get(m.id)?.say(m.text);
+  }
+
+  /** Single key presses not handled by the movement input. */
+  private onKey(code: string): void {
+    if (this.chat?.isOpen || !this.player) return;
+    if (code === 'KeyB') this.summonsPanel.toggle();
+    else if (code === 'KeyX') this.toggleSummon();
+    else if (code === 'Escape') this.summonsPanel.toggle(false);
+  }
+
+  private toggleSummon(): void {
+    this.net.sendSummon(this.summons.mine() ? { op: 'dismiss' } : { op: 'call' });
   }
 
   private emote(e: Emote): void {
@@ -306,6 +351,12 @@ export class Game {
     player.render(dt, alpha, this.originX, this.originZ, this.renderPos);
     this.orbit.update(dt, this.renderPos, pos, this.world.physics);
 
+    if (this.summonsDirty) { this.summonsDirty = false; this.summons.sync(this.lastSummons, this.lastSummonsT); }
+    this.summons.update(now, dt, this.originX, this.originZ, pos);
+    this.vfx.setOrigin(this.originX, this.originZ);
+    this.vfx.update(dt);
+    this.audio.setListener(pos.x, pos.z);
+
     for (const r of this.remotes.values()) {
       r.update(now, dt, this.originX, this.originZ);
       const d = Math.hypot(r.world.x - pos.x, r.world.z - pos.z);
@@ -319,11 +370,23 @@ export class Game {
 
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
-    if (now - this.hudTime > 100) { this.hudTime = now; this.updateHud(false); }
+    if (now - this.hudTime > 100) { this.hudTime = now; this.updateHud(false); this.updateSummonHud(); }
 
     this.frames++;
     if (now - this.fpsTime > 1000) { this.fps = (this.frames * 1000) / (now - this.fpsTime); this.frames = 0; this.fpsTime = now; }
     if (this.debugVisible && now - this.debugTime > 200) { this.debugTime = now; this.updateDebug(pos); }
+  }
+
+  private updateSummonHud(): void {
+    const hud = document.getElementById('summon-hud')!;
+    const v = this.summons.mine();
+    hud.classList.toggle('hidden', !v);
+    if (!v) return;
+    const s = v.last;
+    (hud.querySelector('.sh-name') as HTMLElement).textContent = `${v.def.name} — ${s.hp}/${s.maxHp} PV`;
+    (hud.querySelector('.hpbar > div') as HTMLElement).style.width = `${Math.round((s.hp / Math.max(1, s.maxHp)) * 100)}%`;
+    const MODES = ['arrive…', 'à tes côtés', 'te suit', 'attaque', 'revient', 'K.O.'];
+    (hud.querySelector('.sh-state') as HTMLElement).textContent = `${MODES[s.mode] ?? ''} · X pour ${this.summons.mine() ? 'rappeler' : 'invoquer'}`;
   }
 
   /** Minimap (10 Hz) and player list (while Tab is held). */
@@ -374,6 +437,11 @@ export class Game {
       world: this.world.stats, origin: [this.originX, this.originZ], fps: this.fps,
       camera: { yaw: this.orbit.yaw, pitch: this.orbit.pitch },
     };
+  }
+
+  /** Debug/tests: summons as seen by this client. */
+  *summonsState() {
+    for (const s of this.lastSummons) yield { ...s, loaded: this.summons.views.has(s.ownerId) };
   }
 
   setCameraYaw(yaw: number): void {

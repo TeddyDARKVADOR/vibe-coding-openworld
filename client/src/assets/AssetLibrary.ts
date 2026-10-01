@@ -23,6 +23,8 @@ export interface EnvModel {
   name: string;
   /** One entry per mesh of the model, geometry in model space (node transforms applied). */
   geometries: THREE.BufferGeometry[];
+  /** Material of each geometry (the shared KayKit atlas material for hexagon models). */
+  materials: THREE.Material[];
 }
 
 export interface CharacterTemplate {
@@ -59,8 +61,11 @@ export class AssetLibrary {
   loadEnv(name: string): Promise<EnvModel> {
     let p = this.env.get(name);
     if (!p) {
-      p = this.load(`${ENV_PATH}${name}.gltf`).then((gltf) => {
+      // "poi/shrine" → /assets/poi/shrine.glb ; plain names are Medieval Hexagon models.
+      const url = name.includes('/') ? `/assets/${name}.glb` : `${ENV_PATH}${name}.gltf`;
+      p = this.load(url).then((gltf) => {
         const geometries: THREE.BufferGeometry[] = [];
+        const materials: THREE.Material[] = [];
         gltf.scene.updateMatrixWorld(true);
         gltf.scene.traverse((o) => {
           const mesh = o as THREE.Mesh;
@@ -69,18 +74,36 @@ export class AssetLibrary {
           g.applyMatrix4(mesh.matrixWorld);
           geometries.push(g);
           const mat = mesh.material as THREE.MeshStandardMaterial;
-          if (!this.atlasSet && mat.map) {
-            this.envMaterial.map = mat.map;
-            this.envMaterial.needsUpdate = true;
-            this.atlasSet = true;
+          if (name.includes('/')) {
+            materials.push(this.lambertFor(mat));
+          } else {
+            if (!this.atlasSet && mat.map) {
+              this.envMaterial.map = mat.map;
+              this.envMaterial.needsUpdate = true;
+              this.atlasSet = true;
+            }
+            materials.push(this.envMaterial);
           }
         });
-        const model = { name, geometries };
+        const model = { name, geometries, materials };
         this.envReady.set(name, model);
         return model;
       });
       p.catch(() => this.env.delete(name)); // allow retry later
       this.env.set(name, p);
+    }
+    return p;
+  }
+
+  private models = new Map<string, Promise<CharacterTemplate>>();
+
+  /** Any animated GLB under /assets/ (summons, mounts...), cached; clone with cloneCharacter(). */
+  loadModel(assetPath: string): Promise<CharacterTemplate> {
+    let p = this.models.get(assetPath);
+    if (!p) {
+      p = this.load(`/assets/${assetPath}`).then((gltf) => ({ scene: gltf.scene, clips: gltf.animations }));
+      p.catch(() => this.models.delete(assetPath));
+      this.models.set(assetPath, p);
     }
     return p;
   }
@@ -93,6 +116,18 @@ export class AssetLibrary {
       this.characters.set(name, p);
     }
     return p;
+  }
+
+  private lambertCache = new Map<string, THREE.MeshLambertMaterial>();
+  /** One Lambert material per texture (all KayKit packs use a single atlas each). */
+  private lambertFor(m: THREE.MeshStandardMaterial): THREE.Material {
+    const key = (m.map?.image as { src?: string } | undefined)?.src ?? m.map?.uuid ?? m.color?.getHexString?.() ?? m.uuid;
+    let l = this.lambertCache.get(key);
+    if (!l) {
+      l = new THREE.MeshLambertMaterial({ map: m.map ?? null, color: m.map ? 0xffffff : m.color });
+      this.lambertCache.set(key, l);
+    }
+    return l;
   }
 
   /** A new independent instance of a character (own skeleton, shared geometry/materials). */

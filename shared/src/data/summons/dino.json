@@ -1,0 +1,77 @@
+{
+  "id": "dino",
+  "name": "Dino",
+  "rarity": "common",
+  "role": "skirmisher",
+  "model": "summons/dino.glb",
+  "scale": 0.6,
+  "description": "Le plus rapide : idéal pour harceler.",
+  "stats": {
+    "maxHp": 95,
+    "speed": 6.5,
+    "attack": 9,
+    "defense": 5
+  },
+  "animations": {
+    "idle": "Idle",
+    "walk": "Walk",
+    "run": "Run",
+    "attack": "Punch",
+    "special": "Weapon",
+    "hit": "HitReact",
+    "death": "Death",
+    "spawn": "Jump_Land",
+    "cheer": "Yes"
+  },
+  "abilities": [
+    {
+      "id": "bite",
+      "name": "Morsure",
+      "key": "M1",
+      "type": "melee",
+      "cooldown": 0.8,
+      "damage": 8,
+      "range": 2.4,
+      "animation": "attack",
+      "vfx": "impact",
+      "sound": "hit"
+    },
+    {
+      "id": "sprint",
+      "name": "Sprint",
+      "key": "Q",
+      "type": "dash",
+      "cooldown": 4,
+      "damage": 8,
+      "range": 12,
+      "animation": "run",
+      "vfx": "dust",
+      "sound": "dash"
+    },
+    {
+      "id": "frenzy",
+      "name": "Frénésie",
+      "key": "E",
+      "type": "buff",
+      "cooldown": 10,
+      "stat": "speed",
+      "amount": 0.6,
+      "duration": 5,
+      "animation": "cheer",
+      "vfx": "aura",
+      "sound": "buff"
+    },
+    {
+      "id": "tail_spin",
+      "name": "Coup de queue",
+      "key": "R",
+      "type": "aoe",
+      "cooldown": 16,
+      "damage": 25,
+      "radius": 3.5,
+      "animation": "special",
+      "vfx": "shockwave",
+      "sound": "aoe"
+    }
+  ]
+}

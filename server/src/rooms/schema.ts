@@ -25,7 +25,29 @@ export const PlayerState = schema({
 }, 'PlayerState');
 export type PlayerState = SchemaType<typeof PlayerState>;
 
+/** An active summon (one per player at most), keyed by its owner's session id. */
+export const SummonState = schema({
+  ownerId: t.string(),
+  /** Summon definition id (shared/src/data/summons). */
+  kind: t.string(),
+  x: t.float64(),
+  y: t.float32(),
+  z: t.float64(),
+  yaw: t.float32(),
+  hp: t.uint16(),
+  maxHp: t.uint16(),
+  /** SummonMode */
+  mode: t.uint8(),
+  /** Index in SUMMON_ACTIONS; one-shots replay when actionSeq changes. */
+  action: t.uint8(),
+  actionSeq: t.uint16(),
+  /** Current target: "p:<sessionId>" or "s:<ownerSessionId>", or "". */
+  target: t.string(),
+}, 'SummonState');
+export type SummonState = SchemaType<typeof SummonState>;
+
 export const WorldState = schema({
   players: t.map(PlayerState),
+  summons: t.map(SummonState),
 }, 'WorldState');
 export type WorldState = SchemaType<typeof WorldState>;

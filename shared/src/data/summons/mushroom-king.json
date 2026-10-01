@@ -1,0 +1,78 @@
+{
+  "id": "mushroom-king",
+  "name": "Roi Champignon",
+  "rarity": "common",
+  "role": "ranged",
+  "model": "summons/mushroom-king.glb",
+  "scale": 0.6,
+  "description": "Attaque à distance avec ses spores magiques.",
+  "stats": {
+    "maxHp": 85,
+    "speed": 4.0,
+    "attack": 12,
+    "defense": 0
+  },
+  "animations": {
+    "idle": "Idle",
+    "walk": "Walk",
+    "run": "Run",
+    "attack": "Punch",
+    "special": "Weapon",
+    "hit": "HitReact",
+    "death": "Death",
+    "spawn": "Jump_Land",
+    "cheer": "Yes"
+  },
+  "abilities": [
+    {
+      "id": "spore",
+      "name": "Spore",
+      "key": "M1",
+      "type": "projectile",
+      "cooldown": 1.1,
+      "damage": 9,
+      "range": 14,
+      "projectileSpeed": 18,
+      "animation": "attack",
+      "vfx": "spore",
+      "sound": "projectile"
+    },
+    {
+      "id": "spore_volley",
+      "name": "Grosse spore",
+      "key": "Q",
+      "type": "projectile",
+      "cooldown": 5,
+      "damage": 18,
+      "range": 16,
+      "projectileSpeed": 14,
+      "animation": "special",
+      "vfx": "spore_big",
+      "sound": "projectile"
+    },
+    {
+      "id": "toxic_cloud",
+      "name": "Nuage toxique",
+      "key": "E",
+      "type": "aoe",
+      "cooldown": 8,
+      "damage": 14,
+      "radius": 4,
+      "animation": "special",
+      "vfx": "poison",
+      "sound": "aoe"
+    },
+    {
+      "id": "spore_rain",
+      "name": "Pluie de spores",
+      "key": "R",
+      "type": "aoe",
+      "cooldown": 22,
+      "damage": 40,
+      "radius": 6,
+      "animation": "cheer",
+      "vfx": "explosion_green",
+      "sound": "aoe"
+    }
+  ]
+}

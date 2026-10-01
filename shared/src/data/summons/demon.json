@@ -1,0 +1,77 @@
+{
+  "id": "demon",
+  "name": "Démon",
+  "rarity": "rare",
+  "role": "melee",
+  "model": "summons/demon.glb",
+  "scale": 0.6,
+  "description": "Rapide et brutal au corps à corps.",
+  "stats": {
+    "maxHp": 110,
+    "speed": 5.5,
+    "attack": 10,
+    "defense": 5
+  },
+  "animations": {
+    "idle": "Idle",
+    "walk": "Walk",
+    "run": "Run",
+    "attack": "Punch",
+    "special": "Weapon",
+    "hit": "HitReact",
+    "death": "Death",
+    "spawn": "Jump_Land",
+    "cheer": "Yes"
+  },
+  "abilities": [
+    {
+      "id": "claws",
+      "name": "Griffes",
+      "key": "M1",
+      "type": "melee",
+      "cooldown": 1.0,
+      "damage": 10,
+      "range": 2.4,
+      "animation": "attack",
+      "vfx": "slash",
+      "sound": "swing"
+    },
+    {
+      "id": "leap",
+      "name": "Bond infernal",
+      "key": "Q",
+      "type": "dash",
+      "cooldown": 5,
+      "damage": 12,
+      "range": 10,
+      "animation": "run",
+      "vfx": "dust",
+      "sound": "dash"
+    },
+    {
+      "id": "rage",
+      "name": "Rage",
+      "key": "E",
+      "type": "buff",
+      "cooldown": 12,
+      "stat": "attack",
+      "amount": 0.5,
+      "duration": 6,
+      "animation": "cheer",
+      "vfx": "aura_red",
+      "sound": "buff"
+    },
+    {
+      "id": "hellburst",
+      "name": "Explosion infernale",
+      "key": "R",
+      "type": "aoe",
+      "cooldown": 20,
+      "damage": 35,
+      "radius": 4.5,
+      "animation": "special",
+      "vfx": "explosion",
+      "sound": "aoe"
+    }
+  ]
+}

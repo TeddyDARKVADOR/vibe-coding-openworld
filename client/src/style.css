@@ -53,3 +53,53 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 @media (max-width: 700px), (max-height: 500px) {
   .minimap { width: 130px; height: 130px; }
 }
+
+/* ---- top bar */
+.topbar { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+.topbar button { padding: 6px 12px; border: 0; border-radius: 999px; background: rgba(20, 30, 40, .55); color: #fff; font-size: 13px; cursor: pointer; }
+.topbar button:hover { background: rgba(20, 30, 40, .8); }
+.topbar .badge { margin-left: 5px; padding: 0 6px; border-radius: 999px; background: #e05050; font-size: 11px; }
+
+/* ---- health bars */
+.hpbar { width: 64px; height: 6px; border-radius: 3px; background: rgba(0,0,0,.45); overflow: hidden; }
+.hpbar > div { height: 100%; width: 100%; background: #5cd65c; transition: width .15s; }
+.summon-tag { display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; transform: translateY(-50%); }
+.summon-name { padding: 0 6px; border-radius: 999px; background: rgba(60, 30, 80, .5); color: #f1e6ff; font-size: 11px; white-space: nowrap; }
+.summon-tag.mine .summon-name { background: rgba(40, 90, 160, .6); }
+.tag .hpbar { width: 56px; height: 5px; }
+
+/* ---- own summon HUD */
+.summon-hud { position: fixed; left: 12px; bottom: 210px; display: flex; flex-direction: column; gap: 3px; padding: 6px 10px; border-radius: 8px; background: rgba(20, 30, 40, .5); color: #fff; font-size: 12px; }
+.summon-hud .hpbar { width: 140px; height: 8px; }
+.summon-hud .sh-state { opacity: .75; font-size: 11px; }
+
+/* ---- panels */
+.panel { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); width: min(720px, 94vw); max-height: calc(100vh - 120px); overflow: auto; padding: 12px 16px; border-radius: 12px; background: rgba(250, 252, 255, .95); color: #223; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.panel-head { display: flex; justify-content: space-between; align-items: center; font-size: 16px; margin-bottom: 8px; }
+.panel-head button { border: 0; background: none; font-size: 18px; cursor: pointer; color: #556; }
+.panel button { font: inherit; }
+.sp-body { display: flex; gap: 14px; flex-wrap: wrap; }
+.sp-left { flex: 1 1 250px; display: flex; flex-direction: column; gap: 10px; }
+.sp-right { flex: 1 1 300px; }
+.sp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
+.sp-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px; border: 2px solid transparent; border-radius: 8px; background: #eef2f7; cursor: pointer; text-align: left; }
+.sp-card small { opacity: .7; font-size: 11px; }
+.sp-card.selected { border-color: #3a7bd5; }
+.sp-card.active::after { content: 'active'; font-size: 10px; color: #2f9e5a; }
+.sp-card.locked { opacity: .55; }
+.rarity-common { --r: #7a8a99; } .rarity-rare { --r: #3a7bd5; } .rarity-epic { --r: #9b4dd8; } .rarity-legendary { --r: #e0901a; }
+.sp-card { border-left: 5px solid var(--r); }
+.sp-rarity { color: var(--r); font-weight: 600; font-size: 13px; }
+.sp-draw { padding: 10px; border: 0; border-radius: 8px; background: linear-gradient(90deg, #9b4dd8, #3a7bd5); color: #fff; font-size: 14px; cursor: pointer; }
+.sp-draw:disabled { opacity: .5; cursor: default; }
+.sp-preview { width: 240px; height: 220px; display: block; margin: 0 auto; border-radius: 10px; background: radial-gradient(#ffffff, #dfe8f1); }
+.sp-info h3 { margin: 6px 0 2px; }
+.sp-info p { margin: 6px 0; font-size: 13px; }
+.sp-info ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
+.sp-stats { font-size: 12px; opacity: .8; }
+.sp-buttons { display: flex; gap: 6px; margin-top: 8px; }
+.sp-buttons button { flex: 1; padding: 8px; border: 0; border-radius: 8px; background: #dfe6ee; cursor: pointer; }
+.sp-buttons button.primary { background: #2f9e5a; color: #fff; }
+.sp-buttons button:disabled { opacity: .6; cursor: default; }
+.sp-reveal { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: var(--r); color: #fff; font-weight: 600; animation: pop .5s ease-out; }
+@keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }

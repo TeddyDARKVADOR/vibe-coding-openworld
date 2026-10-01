@@ -1,0 +1,77 @@
+{
+  "id": "yeti",
+  "name": "Yéti",
+  "rarity": "common",
+  "role": "tank",
+  "model": "summons/yeti.glb",
+  "scale": 0.7,
+  "description": "Lourd et résistant, il encaisse pour toi.",
+  "stats": {
+    "maxHp": 180,
+    "speed": 3.6,
+    "attack": 7,
+    "defense": 20
+  },
+  "animations": {
+    "idle": "Idle",
+    "walk": "Walk",
+    "run": "Run",
+    "attack": "Punch",
+    "special": "Weapon",
+    "hit": "HitReact",
+    "death": "Death",
+    "spawn": "Jump_Land",
+    "cheer": "Yes"
+  },
+  "abilities": [
+    {
+      "id": "punch",
+      "name": "Coup de poing",
+      "key": "M1",
+      "type": "melee",
+      "cooldown": 1.2,
+      "damage": 10,
+      "range": 2.6,
+      "animation": "attack",
+      "vfx": "impact",
+      "sound": "hit"
+    },
+    {
+      "id": "charge",
+      "name": "Charge",
+      "key": "Q",
+      "type": "dash",
+      "cooldown": 6,
+      "damage": 14,
+      "range": 9,
+      "animation": "run",
+      "vfx": "dust",
+      "sound": "dash"
+    },
+    {
+      "id": "frost_shell",
+      "name": "Carapace de givre",
+      "key": "E",
+      "type": "buff",
+      "cooldown": 10,
+      "stat": "defense",
+      "amount": 30,
+      "duration": 5,
+      "animation": "cheer",
+      "vfx": "aura",
+      "sound": "buff"
+    },
+    {
+      "id": "quake",
+      "name": "Séisme",
+      "key": "R",
+      "type": "aoe",
+      "cooldown": 20,
+      "damage": 30,
+      "radius": 5.5,
+      "animation": "special",
+      "vfx": "shockwave",
+      "sound": "aoe"
+    }
+  ]
+}

@@ -17,6 +17,10 @@ export enum MsgType {
   Emote = 'e',
   /** server → owner: OwnProfile */
   Profile = 'profile',
+  /** client → server: SummonRequest */
+  Summon = 'sm',
+  /** server → owner: CollectionInfo */
+  Collection = 'col',
 }
 
 /** Emotes, played with KayKit animations. Cancelled as soon as the character moves. */
@@ -109,3 +113,38 @@ export type CharacterName = (typeof CHARACTERS)[number];
 export function characterForSession(sessionId: string): number {
   return hashString(sessionId) % CHARACTERS.length;
 }
+
+// ------------------------------------------------------------------ summons
+
+/** AI state of a summon (server state machine). */
+export enum SummonMode {
+  Spawning = 0,
+  Idle = 1,
+  Follow = 2,
+  Attack = 3,
+  Return = 4,
+  Dead = 5,
+}
+
+/** Animation slot currently played by a summon; one-shots restart when `actionSeq` changes. */
+export const SUMMON_ACTIONS = ['idle', 'walk', 'run', 'attack', 'special', 'hit', 'death', 'spawn', 'cheer'] as const;
+export type SummonAction = (typeof SUMMON_ACTIONS)[number];
+
+export type SummonRequest =
+  | { op: 'call' }
+  | { op: 'dismiss' }
+  | { op: 'select'; id: string }
+  | { op: 'draw' };
+
+/** server → owner: the player's collection (sent after joining and after each change). */
+export interface CollectionInfo {
+  owned: string[];
+  active: string | null;
+  freeLeft: number;
+  /** Result of the last free summon, if this message answers one. */
+  draw?: { id: string; isNew: boolean };
+  /** Seconds before the summon can be called again (after its death). */
+  recallIn?: number;
+}
+
+export const SUMMON_RECALL_DELAY = 8;

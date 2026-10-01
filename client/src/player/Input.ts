@@ -14,6 +14,8 @@ export class Input {
   onEmote: (n: number) => void = () => {};
   onToggleMap: () => void = () => {};
   onPlayerList: (show: boolean) => void = () => {};
+  /** Any other single key press (KeyB, KeyX, KeyQ...), not repeated. */
+  onKeyPress: (code: string) => void = () => {};
 
   constructor(element: HTMLElement) {
     addEventListener('keydown', (e) => {
@@ -21,6 +23,7 @@ export class Input {
       if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat) this.onPlayerList(true); return; }
       if (!e.repeat && /^(Digit|Numpad)[1-3]$/.test(e.code)) this.onEmote(Number(e.code.slice(-1)));
       if (!e.repeat && e.code === 'KeyM') this.onToggleMap();
+      if (!e.repeat) this.onKeyPress(e.code);
       if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) this.jumpPressed = true; }
       if (e.code.startsWith('Arrow')) e.preventDefault();
       this.keys.add(e.code);

@@ -1,0 +1,78 @@
+{
+  "id": "alien",
+  "name": "Alien",
+  "rarity": "epic",
+  "role": "ranged",
+  "model": "summons/alien.glb",
+  "scale": 0.6,
+  "description": "Tireur venu d'ailleurs, très précis.",
+  "stats": {
+    "maxHp": 90,
+    "speed": 5.0,
+    "attack": 13,
+    "defense": 5
+  },
+  "animations": {
+    "idle": "Idle",
+    "walk": "Walk",
+    "run": "Run",
+    "attack": "Punch",
+    "special": "Weapon",
+    "hit": "HitReact",
+    "death": "Death",
+    "spawn": "Jump_Land",
+    "cheer": "Yes"
+  },
+  "abilities": [
+    {
+      "id": "laser",
+      "name": "Laser",
+      "key": "M1",
+      "type": "projectile",
+      "cooldown": 0.9,
+      "damage": 9,
+      "range": 16,
+      "projectileSpeed": 26,
+      "animation": "attack",
+      "vfx": "laser",
+      "sound": "projectile"
+    },
+    {
+      "id": "blink",
+      "name": "Téléportation",
+      "key": "Q",
+      "type": "dash",
+      "cooldown": 6,
+      "damage": 0,
+      "range": 10,
+      "animation": "special",
+      "vfx": "magic",
+      "sound": "dash"
+    },
+    {
+      "id": "overcharge",
+      "name": "Surcharge",
+      "key": "E",
+      "type": "buff",
+      "cooldown": 12,
+      "stat": "attack",
+      "amount": 0.6,
+      "duration": 5,
+      "animation": "cheer",
+      "vfx": "aura",
+      "sound": "buff"
+    },
+    {
+      "id": "orbital",
+      "name": "Frappe orbitale",
+      "key": "R",
+      "type": "aoe",
+      "cooldown": 22,
+      "damage": 42,
+      "radius": 5,
+      "animation": "special",
+      "vfx": "explosion",
+      "sound": "aoe"
+    }
+  ]
+}

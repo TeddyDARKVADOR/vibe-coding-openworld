@@ -43,9 +43,23 @@ export function stepCharacter(
     s.vy = JUMP_SPEED;
     s.grounded = false;
   }
-  s.vy = Math.max(-MAX_FALL_SPEED, s.vy + GRAVITY * dt);
 
-  const want = { x: mx * speed * dt, y: s.vy * dt, z: mz * speed * dt };
+  moveBody(physics, collider, s, mx * speed, mz * speed, dt);
+  if (moving) s.yaw = Math.atan2(mx, mz);
+  s.anim = !s.grounded ? Anim.Jump : moving ? (input.run ? Anim.Run : Anim.Walk) : Anim.Idle;
+}
+
+/** A body moved by the character controller (players, summons). */
+export interface Body { x: number; y: number; z: number; vy: number; grounded: boolean }
+
+/**
+ * Moves a body with horizontal velocity (vx, vz) for dt seconds: gravity,
+ * collisions, sliding, steps. Shared by players and summons.
+ */
+export function moveBody(physics: PhysicsWorld, collider: ColliderOf<PhysicsWorld>, s: Body, vx: number, vz: number, dt = TICK_DT): void {
+  if (!s.grounded || s.vy !== 0) s.vy = Math.max(-MAX_FALL_SPEED, s.vy + GRAVITY * dt);
+  else s.vy = GRAVITY * dt; // keep pressing on the ground so slopes/steps are followed
+  const want = { x: vx * dt, y: s.vy * dt, z: vz * dt };
   const res = physics.moveCharacter(collider, s.x, s.y, s.z, want.x, want.y, want.z);
   s.x += res.dx;
   s.y += res.dy;
@@ -54,9 +68,6 @@ export function stepCharacter(
   if (s.vy > 0 && res.dy < want.y - 1e-4) s.vy = 0; // bumped head
   s.grounded = res.grounded;
   if (s.y < -50) { s.y = 2; s.vy = 0; } // safety net, should never happen
-
-  if (moving) s.yaw = Math.atan2(mx, mz);
-  s.anim = !s.grounded ? Anim.Jump : moving ? (input.run ? Anim.Run : Anim.Walk) : Anim.Idle;
 }
 
 function clampAxis(v: number): number {
