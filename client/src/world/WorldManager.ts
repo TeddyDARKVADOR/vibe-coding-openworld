@@ -39,12 +39,19 @@ export class WorldManager {
   private queue: { cx: number; cz: number; d: number }[] = [];
   onError: (e: unknown) => void = (e) => console.error(e);
 
-  constructor(private rapier: Rapier, private assets: AssetLibrary, renderOriginX: number, renderOriginZ: number) {
+  constructor(
+    private rapier: Rapier,
+    private assets: AssetLibrary,
+    renderOriginX: number,
+    renderOriginZ: number,
+    /** Chebyshev radius (in chunks) of rendered chunks; unloaded beyond loadRadius + 1. */
+    readonly loadRadius = RENDER_LOAD_RADIUS,
+  ) {
     this.renderer = new EnvironmentRenderer(assets);
     this.renderer.setOrigin(renderOriginX, renderOriginZ);
     const region = physicsRegionOf(renderOriginX, renderOriginZ);
     this.physicsRegion = region.key;
-    this.physics = new PhysicsWorld(rapier, region.originX, region.originZ);
+    this.physics = new PhysicsWorld(rapier, region.originX, region.originZ, true);
   }
 
   getChunkKey(x: number, z: number): string {
@@ -70,8 +77,9 @@ export class WorldManager {
   async preload(x: number, z: number, onProgress: (p: number) => void): Promise<void> {
     const cx = chunkCoord(x), cz = chunkCoord(z);
     const jobs: Promise<void>[] = [];
-    for (let dz = -RENDER_LOAD_RADIUS; dz <= RENDER_LOAD_RADIUS; dz++) {
-      for (let dx = -RENDER_LOAD_RADIUS; dx <= RENDER_LOAD_RADIUS; dx++) jobs.push(this.loadChunk(cx + dx, cz + dz));
+    const r = this.loadRadius;
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) jobs.push(this.loadChunk(cx + dx, cz + dz));
     }
     let done = 0;
     await Promise.all(jobs.map((j) => j.then(() => onProgress(++done / jobs.length))));
@@ -120,7 +128,7 @@ export class WorldManager {
     if (region.key !== this.physicsRegion) {
       this.physicsRegion = region.key;
       this.physics.free();
-      this.physics = new PhysicsWorld(this.rapier, region.originX, region.originZ);
+      this.physics = new PhysicsWorld(this.rapier, region.originX, region.originZ, true);
       this.physicsCenterKey = '';
     }
     const cx = chunkCoord(x), cz = chunkCoord(z);
@@ -135,6 +143,19 @@ export class WorldManager {
   /** Data of a loaded chunk (undefined if not loaded). */
   getLoadedChunk(key: string): ChunkData | undefined {
     return this.chunks.get(key)?.data;
+  }
+
+  /** Loaded placements whose model name starts with `prefix`, nearest first (debug / tests). */
+  placementsNear(prefix: string, x: number, z: number, maxDist: number) {
+    const out: { model: string; x: number; z: number; d: number }[] = [];
+    for (const c of this.chunks.values()) {
+      for (const p of c.data.placements) {
+        if (!p.model.startsWith(prefix)) continue;
+        const d = Math.hypot(p.x - x, p.z - z);
+        if (d <= maxDist) out.push({ model: p.model, x: p.x, z: p.z, d });
+      }
+    }
+    return out.sort((a, b) => a.d - b.d);
   }
 
   isChunkShown(key: string): boolean {
@@ -168,12 +189,13 @@ export class WorldManager {
   private planChunks(cx: number, cz: number): void {
     // Unload far chunks.
     for (const c of [...this.chunks.values()]) {
-      if (Math.max(Math.abs(c.data.cx - cx), Math.abs(c.data.cz - cz)) > RENDER_UNLOAD_RADIUS) this.unloadChunk(c.data.cx, c.data.cz);
+      if (Math.max(Math.abs(c.data.cx - cx), Math.abs(c.data.cz - cz)) > this.loadRadius + (RENDER_UNLOAD_RADIUS - RENDER_LOAD_RADIUS)) this.unloadChunk(c.data.cx, c.data.cz);
     }
     // Queue missing ones, nearest first.
     this.queue = [];
-    for (let dz = -RENDER_LOAD_RADIUS; dz <= RENDER_LOAD_RADIUS; dz++) {
-      for (let dx = -RENDER_LOAD_RADIUS; dx <= RENDER_LOAD_RADIUS; dx++) {
+    const r = this.loadRadius;
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
         if (!this.chunks.has(chunkKey(cx + dx, cz + dz))) this.queue.push({ cx: cx + dx, cz: cz + dz, d: dx * dx + dz * dz });
       }
     }

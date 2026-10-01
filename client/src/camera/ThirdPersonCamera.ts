@@ -39,7 +39,7 @@ export class ThirdPersonCamera {
     const cp = Math.cos(this.pitch);
     const dir = { x: Math.sin(this.yaw) * cp, y: Math.sin(this.pitch), z: Math.cos(this.yaw) * cp };
     // Camera collision: stop 0.3 m before the first obstacle between head and camera.
-    const hit = physics.raycast(worldPos.x, worldPos.y + TARGET_HEIGHT, worldPos.z, dir.x, dir.y, dir.z, this.distance + 0.3);
+    const hit = physics.raycast(worldPos.x, worldPos.y + TARGET_HEIGHT, worldPos.z, dir.x, dir.y, dir.z, this.distance + 0.3, true);
     const allowed = Math.max(0.8, Math.min(this.distance, hit - 0.3));
     // Snap closer immediately (never see through walls), ease back out.
     this.currentDistance = allowed < this.currentDistance ? allowed : this.currentDistance + (allowed - this.currentDistance) * Math.min(1, dt * 4);

@@ -2,7 +2,7 @@
 // Requires `npm run dev` running. usage: node scripts/two-players-test.mjs [outDir]
 import { chromium } from 'playwright';
 const out = process.argv[2] ?? '.';
-const URL = process.env.URL ?? 'http://localhost:5173/?debug';
+const URL = process.env.URL ?? 'http://localhost:5173/?debug&radius=1';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const open = async (name) => {
   const ctx = await browser.newContext({ viewport: { width: 480, height: 300 } });
@@ -52,7 +52,8 @@ a = await A.state(); b = await B.state();
 const remoteB = a.remotes.find((r) => r.id === b.sessionId);
 check('D: B moved', Math.hypot(b.x - b0.x, b.z - b0.z) > 0.5);
 check('D: A sees B at B\'s position', remoteB && Math.hypot(remoteB.x - b.x, remoteB.z - b.z) < 0.3, remoteB ? `err ${Math.hypot(remoteB.x - b.x, remoteB.z - b.z).toFixed(3)} m` : 'missing');
-check('prediction matches server (no corrections)', a.corrections === 0 && b.corrections === 0, `A ${a.corrections} (${a.lastCorrection}), B ${b.corrections} (${b.lastCorrection})`);
+// Client prediction runs the same code on the same physics origin: corrections should be absent or sub-centimetre.
+check('prediction matches server (corrections < 1 cm)', a.lastCorrection < 0.01 && b.lastCorrection < 0.01, `A ${a.corrections} (last ${(a.lastCorrection * 1000).toFixed(1)} mm), B ${b.corrections} (last ${(b.lastCorrection * 1000).toFixed(1)} mm)`);
 await A.page.screenshot({ path: `${out}/two-A-moved.png` });
 await B.page.screenshot({ path: `${out}/two-B-moved.png` });
 

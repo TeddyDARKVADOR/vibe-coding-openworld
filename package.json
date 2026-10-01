@@ -13,7 +13,9 @@
     "build": "npm run build -w client",
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
-    "test": "npm test -w shared && npm test -w client && npm test -w server"
+    "test": "npm test -w shared && npm test -w client && npm test -w server",
+    "assets:fetch": "./scripts/fetch-assets.sh",
+    "assets:prepare": "node scripts/prepare-assets.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",
@@ -21,5 +23,8 @@
     "concurrently": "^10.0.5",
     "playwright": "^1.56.1",
     "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20.6"
   }
 }

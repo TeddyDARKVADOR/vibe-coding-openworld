@@ -30,9 +30,15 @@ export function physicsRegionOf(x: number, z: number): { key: string; originX: n
   return { key: `${rx},${rz}`, originX: (rx + 0.5) * PHYSICS_REGION_SIZE, originZ: (rz + 0.5) * PHYSICS_REGION_SIZE };
 }
 
-/** Collision groups: environment = bit 0, characters = bit 1. Characters never collide with each other. */
+/**
+ * Collision groups (Rapier: 16 bits membership << 16 | 16 bits filter):
+ * environment = bit 0, characters = bit 1, camera-only (foliage) = bit 2.
+ * Characters only interact with the environment (never with each other or foliage).
+ */
 const GROUP_ENV = (0x0001 << 16) | 0xffff;
+const GROUP_CAMERA_ONLY = (0x0004 << 16) | 0xffff;
 const GROUP_CHARACTER = (0x0002 << 16) | 0x0001;
+const GROUP_CAMERA_RAY = (0x0002 << 16) | 0x0005;
 
 export class PhysicsWorld {
   readonly world: World;
@@ -40,7 +46,13 @@ export class PhysicsWorld {
   private chunks = new Map<string, Collider[]>();
   private dirty = true;
 
-  constructor(readonly rapier: Rapier, readonly originX: number, readonly originZ: number) {
+  constructor(
+    readonly rapier: Rapier,
+    readonly originX: number,
+    readonly originZ: number,
+    /** Create camera-only colliders (client). The server doesn't need them. */
+    private withCameraColliders = false,
+  ) {
     this.world = new rapier.World({ x: 0, y: 0, z: 0 }); // gravity handled by the character code
     const c = this.world.createCharacterController(0.02);
     c.setUp({ x: 0, y: 1, z: 0 });
@@ -70,12 +82,13 @@ export class PhysicsWorld {
     const R = this.rapier;
     const list: Collider[] = [];
     for (const s of specs) {
+      if (s.cameraOnly && !this.withCameraColliders) continue;
       let desc: ReturnType<typeof R.ColliderDesc.cuboid> | null;
       if (s.shape === 'cuboid') desc = R.ColliderDesc.cuboid(s.hx, s.hy, s.hz).setRotation(quatY30(s.rot30));
       else if (s.shape === 'cylinder') desc = R.ColliderDesc.cylinder(s.halfHeight, s.radius);
       else desc = R.ColliderDesc.convexHull(new Float32Array(s.points))?.setRotation(quatY30(s.rot30)) ?? null;
       if (!desc) continue;
-      desc.setTranslation(s.x - this.originX, s.y, s.z - this.originZ).setCollisionGroups(GROUP_ENV);
+      desc.setTranslation(s.x - this.originX, s.y, s.z - this.originZ).setCollisionGroups(s.cameraOnly ? GROUP_CAMERA_ONLY : GROUP_ENV);
       list.push(this.world.createCollider(desc));
     }
     this.chunks.set(key, list);
@@ -135,11 +148,14 @@ export class PhysicsWorld {
     return free;
   }
 
-  /** Distance along a ray (world coords) to the first environment hit, or `maxDist`. */
-  raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxDist: number): number {
+  /**
+   * Distance along a ray (world coords) to the first environment hit, or
+   * `maxDist`. `forCamera` also stops on camera-only colliders (foliage).
+   */
+  raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxDist: number, forCamera = false): number {
     this.updateQueries();
     const ray = new this.rapier.Ray({ x: ox - this.originX, y: oy, z: oz - this.originZ }, { x: dx, y: dy, z: dz });
-    const hit = this.world.castRay(ray, maxDist, true, undefined, GROUP_CHARACTER);
+    const hit = this.world.castRay(ray, maxDist, true, undefined, forCamera ? GROUP_CAMERA_RAY : GROUP_CHARACTER);
     return hit ? hit.timeOfImpact : maxDist;
   }
 

@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { CHARACTERS, TICK_DT, chunkCoord, chunkKey } from '@openworld/shared';
+import { CHARACTERS, CHUNK_SIZE, RENDER_LOAD_RADIUS, TICK_DT, chunkCoord, chunkKey } from '@openworld/shared';
 import { AssetLibrary } from '../assets/AssetLibrary.ts';
 import { ThirdPersonCamera } from '../camera/ThirdPersonCamera.ts';
 import { NetworkManager, serverUrl, type NetPlayer } from '../networking/NetworkManager.ts';
@@ -19,14 +19,18 @@ const SKY = 0xa8d8f0;
 /** Floating origin: when the player is this far from the render origin, everything is re-centred. */
 const REBASE_DISTANCE = 1024;
 const ORIGIN_SNAP = 256;
+/** View distance in chunks; `?radius=2` for modest machines, up to 5. */
+const VIEW_RADIUS = Math.min(5, Math.max(1, Number(new URLSearchParams(location.search).get('radius')) || RENDER_LOAD_RADIUS));
+/** Fog ends before the edge of the loaded area, so streaming is never visible. */
+const FOG_FAR = VIEW_RADIUS * CHUNK_SIZE + 16;
 /** Remote players further than this are not drawn (their chunks aren't loaded anyway). */
-const REMOTE_VISIBLE_DISTANCE = 450;
+const REMOTE_VISIBLE_DISTANCE = FOG_FAR + 40;
 
 export class Game {
   private renderer!: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(60, 1, 0.1, 480);
-  private sun = new THREE.DirectionalLight(0xfff4e0, 2.4);
+  private camera = new THREE.PerspectiveCamera(60, 1, 0.1, FOG_FAR + 80);
+  private sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
   private orbit = new ThirdPersonCamera(this.camera);
   private assets = new AssetLibrary();
   private input!: Input;
@@ -78,7 +82,7 @@ export class Game {
     // Render/physics origin snapped near the spawn point.
     this.originX = Math.round(me.x / ORIGIN_SNAP) * ORIGIN_SNAP;
     this.originZ = Math.round(me.z / ORIGIN_SNAP) * ORIGIN_SNAP;
-    this.world = new WorldManager(RAPIER, this.assets, this.originX, this.originZ);
+    this.world = new WorldManager(RAPIER, this.assets, this.originX, this.originZ, VIEW_RADIUS);
     this.world.onError = (e) => this.fail('Ressource introuvable', e instanceof Error ? e.message : String(e));
     this.scene.add(this.world.renderer.group);
 
@@ -112,6 +116,9 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Soft filmic response: keeps KayKit's bright palette without oversaturating the grass.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.15;
     this.container.appendChild(this.renderer.domElement);
     this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
@@ -119,8 +126,8 @@ export class Game {
     });
 
     this.scene.background = new THREE.Color(SKY);
-    this.scene.fog = new THREE.Fog(SKY, 140, 400);
-    this.scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x7a9a5a, 1.7));
+    this.scene.fog = new THREE.Fog(SKY, FOG_FAR * 0.35, FOG_FAR);
+    this.scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x7a9a5a, 1.5));
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     const s = this.sun.shadow.camera;
@@ -282,6 +289,21 @@ export class Game {
 
   setCameraYaw(yaw: number): void {
     this.orbit.yaw = yaw;
+  }
+
+  /**
+   * Debug/tests: nearest model of a kind that is in direct line of sight (the
+   * first collider hit by a ray towards its centre is its own), with the
+   * camera yaw that faces it.
+   */
+  nearestVisible(prefix: string, maxDist = 120) {
+    const p = this.player!.state;
+    for (const n of this.world.placementsNear(prefix, p.x, p.z, maxDist)) {
+      const dx = (n.x - p.x) / n.d, dz = (n.z - p.z) / n.d;
+      const hit = this.world.physicsAt(p.x, p.z).raycast(p.x, p.y + 0.5, p.z, dx, 0, dz, n.d);
+      if (hit > n.d - 4 && hit < n.d - 0.3) return { ...n, firstHit: hit, yaw: Math.atan2(-dx, -dz) };
+    }
+    return null;
   }
 
   private fail(title: string, text: string): void {

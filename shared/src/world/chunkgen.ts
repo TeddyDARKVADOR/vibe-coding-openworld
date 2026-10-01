@@ -17,7 +17,7 @@ import { HEX_DIRS, hexDistance, hexKey, hexToWorld, hexesInRect, type Hex } from
 import { fbm2 } from './noise.ts';
 import { computeNetwork, roadCrossingsNear, type AxialBox } from './network.ts';
 import { coastTile, crossingTile, riverTile, roadTile } from './tiles.ts';
-import { colliderForPlacement, type ColliderSpec, type Placement } from './catalog.ts';
+import { cameraColliderForPlacement, colliderForPlacement, type ColliderSpec, type Placement } from './catalog.ts';
 
 const SEED = hashString(WORLD_SEED);
 const NOISE = {
@@ -119,6 +119,8 @@ export function generateChunk(cx: number, cz: number): ChunkData {
     placements.push(p);
     const c = colliderForPlacement(p);
     if (c) colliders.push(c);
+    const cam = cameraColliderForPlacement(p);
+    if (cam) colliders.push(cam);
   };
 
   for (const h of own) {
