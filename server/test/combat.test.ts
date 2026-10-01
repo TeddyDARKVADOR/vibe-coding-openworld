@@ -54,7 +54,8 @@ test('summon vs player: target, attack, damage seen by both, death and respawn',
   // Ultimate (AoE) + keep attacking until B is knocked out.
   a.room.send(MsgType.Ability, 3);
   assert.ok(await until(() => b.ev.death.some((d) => d.target === bRef), 30000), 'B knocked out');
-  assert.equal(b.room.state.players.get(b.room.sessionId).dead, true);
+  // The death message is sent at once; the state patch follows within one patch interval.
+  assert.ok(await until(() => b.room.state.players.get(b.room.sessionId).dead, 1000), 'B dead in the synced state');
   assert.ok(await until(() => !b.room.state.players.get(b.room.sessionId).dead, 6000), 'B respawns');
   const pb = b.room.state.players.get(b.room.sessionId);
   assert.equal(pb.hp, PLAYER_MAX_HP);

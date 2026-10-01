@@ -31,12 +31,18 @@ check('A targets B with T', target === `p:${bId}`, target);
 await A.page.keyboard.press('KeyR');
 await A.page.mouse.click(320, 200); // select/lock
 await A.page.keyboard.press('KeyE');
+// Checked right away: on a slow headless page the cooldowns may be over by the time the hit is seen.
+const cdShown = await until(() => A.page.evaluate(() => [...document.querySelectorAll('.ab-cd')].some((e) => e.textContent !== '')), 8000);
+check('ability cooldown displayed', !!cdShown);
 const hitB = await until(() => B.page.evaluate((id) => { const p = window.__game.net.room.state.players.get(id); return p.hp < 100 ? p.hp : 0; }, bId), 60000);
 check('B lost HP (server-validated)', hitB > 0, `hp=${hitB}`);
-const hpSeenByA = await A.page.evaluate((id) => window.__game.net.room.state.players.get(id).hp, bId);
-check('A sees the same HP for B', Math.abs(hpSeenByA - hitB) <= 12, `A sees ${hpSeenByA}, B has ${hitB}`);
-const cdShown = await A.page.evaluate(() => [...document.querySelectorAll('.ab-cd')].some((e) => e.textContent !== ''));
-check('ability cooldown displayed', cdShown);
+// Both clients get the same patches; give A's copy a moment to arrive.
+const hpB = () => B.page.evaluate((id) => window.__game.net.room.state.players.get(id).hp, bId);
+const hpA = () => A.page.evaluate((id) => window.__game.net.room.state.players.get(id).hp, bId);
+let hpSeenByA = 0;
+await until(async () => { hpSeenByA = await hpA(); return Math.abs(hpSeenByA - (await hpB())) <= 12; }, 3000);
+const hpNow = await hpB();
+check('A sees the same HP for B', Math.abs(hpSeenByA - hpNow) <= 12, `A sees ${hpSeenByA}, B has ${hpNow}`);
 await sleep(1500);
 await A.page.screenshot({ path: `${out}/combat-A.png` });
 await B.page.screenshot({ path: `${out}/combat-B.png` });

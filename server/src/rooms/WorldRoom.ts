@@ -35,6 +35,13 @@ function parseSpawn(v: string | undefined): [number, number] {
 
 let rapierReady: Promise<void> | null = null;
 
+/** Simulation cost, exposed on GET /stats (load tests, monitoring). */
+export const serverStats = {
+  ticks: 0, totalMs: 0, maxMs: 0, players: 0, summons: 0, sim: {} as Record<string, number>,
+  reset() { this.ticks = 0; this.totalMs = 0; this.maxMs = 0; },
+  get avgMs() { return this.ticks ? this.totalMs / this.ticks : 0; },
+};
+
 export class WorldRoom extends Room<{ state: WorldState }> {
   maxClients = 64;
   state = new WorldState();
@@ -275,6 +282,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   }
 
   private update() {
+    const t0 = performance.now();
+    this.tick();
+    const ms = performance.now() - t0;
+    serverStats.ticks++; serverStats.totalMs += ms; serverStats.maxMs = Math.max(serverStats.maxMs, ms);
+    serverStats.players = this.state.players.size; serverStats.summons = this.state.summons.size; serverStats.sim = this.sim.stats;
+  }
+
+  private tick() {
     for (const [id, pc] of this.combat.players) {
       const sp = this.sim.getPlayer(id);
       if (!sp) continue;
