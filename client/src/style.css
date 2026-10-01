@@ -120,3 +120,19 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .ko { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(rgba(80,0,0,.15), rgba(60,0,0,.55)); color: #fff; font-size: 44px; font-weight: 800; text-shadow: 0 2px 8px #000; pointer-events: none; }
 .ko small { font-size: 15px; font-weight: 400; }
 @media (max-height: 500px) { .player-hud { bottom: auto; top: 50px; } .summon-hud { bottom: auto; top: 96px; } }
+
+/* ---- friends */
+.friends-panel { width: min(460px, 94vw); }
+.fp-me { font-size: 14px; margin-bottom: 8px; }
+.fp-me button, .fp-addrow button, .fp-btns button { padding: 5px 10px; border: 0; border-radius: 6px; background: #dfe6ee; cursor: pointer; }
+.fp-addrow { display: flex; gap: 6px; }
+.fp-input { flex: 1; padding: 7px 10px; border: 1px solid #b8c8d8; border-radius: 6px; text-transform: uppercase; }
+.fp-feedback { min-height: 18px; margin: 6px 0; font-size: 13px; }
+.fp-feedback.ok { color: #2f9e5a; } .fp-feedback.ko { color: #c04040; }
+.fp-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #e3e8ee; }
+.fp-name { flex: 1; font-weight: 600; }
+.fp-status { font-size: 11px; font-weight: 700; }
+.fp-status.online { color: #2f9e5a; } .fp-status.offline { color: #8a96a3; } .fp-status.pending { color: #b0791a; font-weight: 400; }
+.fp-btns { display: flex; gap: 4px; }
+.fp-btns button.primary { background: #2f9e5a; color: #fff; }
+.fp-empty { opacity: .7; font-size: 13px; }

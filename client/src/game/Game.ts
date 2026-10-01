@@ -23,6 +23,7 @@ import type { NetSummon } from '../summons/SummonView.ts';
 import { TargetSystem, type Targetable } from '../combat/TargetSystem.ts';
 import { CombatFeedback } from '../combat/CombatFeedback.ts';
 import { AbilityBar } from '../ui/AbilityBar.ts';
+import { FriendsPanel } from '../ui/FriendsPanel.ts';
 import { ChatBox, NameTag, PlayerList, compass } from './social.ts';
 import type { PlayerProfile } from './EntryScreen.ts';
 import { ui } from './ui.ts';
@@ -63,6 +64,7 @@ export class Game {
   private feedback!: CombatFeedback;
   private abilityBar!: AbilityBar;
   private myDead = false;
+  private friendsPanel!: FriendsPanel;
   private pendingToast: string | null = null;
   private input!: Input;
   private net: NetworkManager;
@@ -100,6 +102,12 @@ export class Game {
         this.feedback?.damage(e, mine);
         if (mine) this.player?.model.playHit();
       },
+      onFriends: (f) => this.friendsPanel?.set(f),
+      onFriendFeedback: (f) => {
+        this.friendsPanel?.flash(f.text, f.ok);
+        this.chat?.add('', f.text, true);
+        this.audio.play(f.ok ? 'notify' : 'click');
+      },
       onDeath: (e) => {
         if (!this.chat) return;
         this.chat.add('', e.target.startsWith('s:') ? `${e.victimName} a été vaincu par ${e.killerName}.` : `${e.victimName} est K.O. (par ${e.killerName}).`, true);
@@ -121,6 +129,7 @@ export class Game {
     this.targets = new TargetSystem(this.scene, (ref) => this.net.sendTarget(ref));
     this.feedback = new CombatFeedback(this.scene, this.vfx, this.audio, (ref) => this.positionOf(ref));
     this.abilityBar = new AbilityBar((i) => this.useAbility(i));
+    this.friendsPanel = new FriendsPanel((r) => this.net.sendFriend(r), this.audio);
     this.scene.add(this.vfx.group);
     this.summons = new SummonsClient(this.scene, this.assets, this.vfx, this.audio, () => this.net.sessionId,
       (id) => this.lastSnapshot.find((p) => p.id === id)?.name ?? '?', (e) => this.fail('Ressource introuvable', e instanceof Error ? e.message : String(e)));
@@ -172,6 +181,7 @@ export class Game {
     this.minimap.visible = true;
     const top = document.getElementById('topbar')!;
     top.classList.remove('hidden');
+    document.getElementById('btn-friends')!.onclick = () => { this.audio.play('click'); this.friendsPanel.toggle(); };
     document.getElementById('btn-summons')!.onclick = () => { this.audio.play('click'); this.summonsPanel.toggle(); };
     const mute = document.getElementById('btn-mute')!;
     mute.textContent = this.audio.muted ? '🔇' : '🔊';
@@ -281,17 +291,18 @@ export class Game {
   private onKey(code: string): void {
     if (this.chat?.isOpen || !this.player) return;
     if (code === 'KeyB') this.summonsPanel.toggle();
+    else if (code === 'KeyF') this.friendsPanel.toggle();
     else if (code === 'KeyT') this.targets.cycle(this.player.state, this.targetables());
     else if (code === 'KeyQ') this.useAbility(1);
     else if (code === 'KeyE') this.useAbility(2);
     else if (code === 'KeyR') this.useAbility(3);
     else if (code === 'KeyX') this.toggleSummon();
-    else if (code === 'Escape') this.summonsPanel.toggle(false);
+    else if (code === 'Escape') { this.summonsPanel.toggle(false); this.friendsPanel.toggle(false); }
   }
 
   /** Click: in aim mode = basic attack (picking what is under the crosshair if needed); otherwise select what was clicked. */
   private onPrimary(x: number, y: number, locked: boolean): void {
-    if (!this.player || this.chat.isOpen || this.summonsPanel.visible) return;
+    if (!this.player || this.chat.isOpen || this.summonsPanel.visible || this.friendsPanel.visible) return;
     if (locked) {
       if (!this.targets.ref) this.targets.pick(innerWidth / 2, innerHeight / 2, this.camera, this.targetables(), this.originX, this.originZ);
       if (this.targets.ref) this.useAbility(0);

@@ -4,7 +4,7 @@
  */
 import { Client, type Room } from '@colyseus/sdk';
 import type { NetSummon } from '../summons/SummonView.ts';
-import { DEFAULT_SERVER_PORT, Emote, MsgType, ROOM_NAME, encodeInput, type AbilityEvent, type ChatMessage, type CollectionInfo, type DamageEvent, type DeathEvent, type JoinOptions, type OwnProfile, type PlayerInput, type SummonRequest } from '@openworld/shared';
+import { DEFAULT_SERVER_PORT, Emote, MsgType, ROOM_NAME, encodeInput, type AbilityEvent, type ChatMessage, type CollectionInfo, type DamageEvent, type DeathEvent, type FriendFeedback, type FriendRequest, type FriendsInfo, type JoinOptions, type OwnProfile, type PlayerInput, type SummonRequest } from '@openworld/shared';
 
 export interface NetPlayer {
   id: string;
@@ -24,6 +24,8 @@ export interface NetworkEvents {
   onAbility(e: AbilityEvent): void;
   onDamage(e: DamageEvent): void;
   onDeath(e: DeathEvent): void;
+  onFriends(f: FriendsInfo): void;
+  onFriendFeedback(f: FriendFeedback): void;
 }
 
 export function serverUrl(): string {
@@ -71,6 +73,8 @@ export class NetworkManager {
     room.onMessage(MsgType.AbilityFx, (e: AbilityEvent) => this.events.onAbility(e));
     room.onMessage(MsgType.Damage, (e: DamageEvent) => this.events.onDamage(e));
     room.onMessage(MsgType.Death, (e: DeathEvent) => this.events.onDeath(e));
+    room.onMessage(MsgType.Friends, (f: FriendsInfo) => this.events.onFriends(f));
+    room.onMessage(MsgType.FriendFeedback, (f: FriendFeedback) => this.events.onFriendFeedback(f));
     room.onMessage(MsgType.Collection, (c: CollectionInfo) => this.events.onCollection(c));
     room.onMessage(MsgType.Profile, (p: OwnProfile) => { this.profile = p; this.events.onProfile(p); });
     room.onDrop(() => this.events.onConnectionChange('reconnecting'));
@@ -97,6 +101,10 @@ export class NetworkManager {
 
   sendSummon(req: SummonRequest): void {
     this.room?.send(MsgType.Summon, req);
+  }
+
+  sendFriend(r: FriendRequest): void {
+    this.room?.send(MsgType.Friend, r);
   }
 
   sendTarget(ref: string): void {

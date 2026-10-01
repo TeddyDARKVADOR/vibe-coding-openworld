@@ -16,6 +16,7 @@ export class Interpolator {
 
   push(t: number, p: Pose): void {
     const last = this.buffer[this.buffer.length - 1];
+    if (last && Math.hypot(p.x - last.x, p.z - last.z) > 30) { this.reset(p); this.buffer.push({ t, x: p.x, y: p.y, z: p.z, yaw: p.yaw }); return; } // teleport
     // Patches only arrive when something changed: re-anchor after a quiet period.
     if (last && t - last.t > 100) this.buffer.push({ ...last, t: t - 50 });
     this.buffer.push({ t, x: p.x, y: p.y, z: p.z, yaw: p.yaw });

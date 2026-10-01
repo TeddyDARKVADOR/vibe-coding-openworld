@@ -25,7 +25,7 @@
 
     <div id="loading" class="loading hidden"><div class="loading-box"><div class="loading-title">Chargement du monde…</div><div class="bar"><div id="loading-bar"></div></div><div id="loading-text"></div></div></div>
     <div id="status" class="status hidden"></div>
-    <div id="hint" class="hint hidden">Clic : caméra · ZQSD/WASD : marcher · Maj : courir · Espace : sauter · Entrée : chat · 1 2 3 : emotes · B : invocations · X : invoquer · T / clic : cibler · Clic Q E R : attaques · M : carte · Tab : joueurs · F3 : debug</div>
+    <div id="hint" class="hint hidden">Clic : caméra · ZQSD/WASD : marcher · Maj : courir · Espace : sauter · Entrée : chat · 1 2 3 : emotes · B : invocations · F : amis · X : invoquer · T / clic : cibler · Clic Q E R : attaques · M : carte · Tab : joueurs · F3 : debug</div>
     <pre id="debug" class="debug hidden"></pre>
 
     <div id="chat" class="chat hidden">
@@ -53,6 +53,14 @@
         <div class="sp-left"><div class="sp-grid"></div><button class="sp-draw">Invocation gratuite</button></div>
         <div class="sp-right"><canvas class="sp-preview" width="240" height="220"></canvas><div class="sp-info"></div></div>
       </div>
+    </div>
+
+    <div id="friends-panel" class="panel friends-panel hidden">
+      <div class="panel-head"><b>Amis</b><button class="fp-close" aria-label="Fermer">✕</button></div>
+      <div class="fp-me">Ton code : <b class="fp-code"></b> <button class="fp-copy">Copier</button></div>
+      <div class="fp-addrow"><input class="fp-input" placeholder="Code d'un ami (FRIEND-XXXX)" maxlength="11" autocomplete="off" /><button class="fp-add">Ajouter</button></div>
+      <div class="fp-feedback"></div>
+      <div class="fp-list"></div>
     </div>
 
     <div id="error" class="error hidden"><div class="error-box"><div class="error-title" id="error-title"></div><div id="error-text"></div><button id="error-retry">Réessayer</button></div></div>

@@ -19,8 +19,9 @@ import {
 import { PlayerState, SummonState, WorldState } from './schema.ts';
 import { SummonManager } from '../summons/SummonManager.ts';
 import { CombatSystem } from '../combat/CombatSystem.ts';
+import { FriendService } from '../friends/FriendService.ts';
 import { ServerSimulation } from '../simulation/ServerSimulation.ts';
-import { playerData } from '../services.ts';
+import { playerData, playerStore } from '../services.ts';
 import { isValidPlayerId } from '../persistence/PlayerDataService.ts';
 import type { PlayerData } from '../persistence/PlayerData.ts';
 
@@ -40,6 +41,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private sim!: ServerSimulation;
   private summonManager!: SummonManager;
   private combat!: CombatSystem;
+  private friends!: FriendService;
   /** Test-only: DEBUG_SPAWN="x,z" moves the spawn area (e.g. to check very large coordinates). */
   private spawnCenter = parseSpawn(process.env.DEBUG_SPAWN);
   /** Anti-spam: time of the last chat message per session. */
@@ -78,6 +80,18 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       broadcastDeath: (e) => this.broadcast(MsgType.Death, e),
       respawn: (id) => this.respawn(id),
     }, this.summonManager);
+    this.friends = new FriendService({
+      store: playerStore,
+      sessionOf: (pid) => this.sessionOfPlayer.get(pid),
+      dataOf: (sid) => this.data.get(sid),
+      save: (d) => playerData.save(d),
+      sendFriends: (sid, info) => this.clients.find((c) => c.sessionId === sid)?.send(MsgType.Friends, info),
+      feedback: (sid, fb) => this.clients.find((c) => c.sessionId === sid)?.send(MsgType.FriendFeedback, fb),
+      joinable: (sid) => !!this.combat.players.get(sid) && !this.combat.players.get(sid)!.dead,
+      moveNextTo: (sid, target) => this.moveNextTo(sid, target),
+      now: () => this.clock.currentTime / 1000,
+    });
+    this.onMessage(MsgType.Friend, (client, req: unknown) => this.friends.handle(client.sessionId, req));
     this.onMessage(MsgType.Target, (client, ref: unknown) => this.combat.setTarget(client.sessionId, ref));
     this.onMessage(MsgType.Ability, (client, index: unknown) => this.combat.useAbility(client.sessionId, index));
 
@@ -147,6 +161,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.copy(p.state, ps, -1);
     this.state.players.set(client.sessionId, ps);
     this.combat.addPlayer(client.sessionId);
+    if (persisted) { this.friends.sendList(client.sessionId); this.friends.playerOnlineChanged(data); }
     this.summonManager.sendCollection(client.sessionId);
     console.log(`[world] ${client.sessionId} "${ps.name}" joined as ${CHARACTERS[ps.character]} at (${p.state.x.toFixed(1)}, ${p.state.z.toFixed(1)})${saved ? ' (restored)' : ''} — ${this.clients.length} online`);
   }
@@ -177,11 +192,25 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.savePlayer(client.sessionId);
     this.summonManager.ownerLeft(client.sessionId);
     this.combat.removePlayer(client.sessionId);
+    this.friends.left(client.sessionId);
+    const leaving = this.data.get(client.sessionId);
     this.forget(client.sessionId);
+    if (leaving?.friendCode) this.friends.playerOnlineChanged(leaving);
     this.sim.removePlayer(client.sessionId);
     this.state.players.delete(client.sessionId);
     this.lastChat.delete(client.sessionId);
     console.log(`[world] ${client.sessionId} left — ${this.clients.length} online`);
+  }
+
+  /** "Join a friend": the server picks a free spot a few metres from the friend. */
+  private moveNextTo(sid: string, targetSid: string): boolean {
+    const me = this.sim.getPlayer(sid), t = this.sim.getPlayer(targetSid);
+    if (!me || !t) return false;
+    const a = t.state.yaw + Math.PI * 0.75; // behind-left of the friend
+    this.sim.teleport(me, t.state.x + Math.sin(a) * 3, t.state.z + Math.cos(a) * 3, t.state.y + 0.05);
+    me.state.yaw = t.state.yaw;
+    me.queue.length = 0; // inputs predicted at the old place are meaningless now
+    return Math.hypot(me.state.x - t.state.x, me.state.z - t.state.z) < 15;
   }
 
   /** Back to the start area after being knocked out. */

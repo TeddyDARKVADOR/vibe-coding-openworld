@@ -31,6 +31,12 @@ export enum MsgType {
   Damage = 'dmg',
   /** server → all: DeathEvent */
   Death = 'death',
+  /** client → server: FriendRequest */
+  Friend = 'fr',
+  /** server → player: FriendsInfo */
+  Friends = 'friends',
+  /** server → player: FriendFeedback */
+  FriendFeedback = 'frfb',
 }
 
 /** Emotes, played with KayKit animations. Cancelled as soon as the character moves. */
@@ -207,3 +213,37 @@ export interface DeathEvent {
 export function computeDamage(base: number, attack: number, defense: number): number {
   return Math.max(1, Math.round(base * (attack / 10) * (100 / (100 + Math.max(0, defense)))));
 }
+
+// ------------------------------------------------------------------ friends
+
+export type FriendRequest =
+  | { op: 'list' }
+  | { op: 'add'; code: string }
+  | { op: 'accept'; code: string }
+  | { op: 'decline'; code: string }
+  | { op: 'remove'; code: string }
+  | { op: 'join'; code: string };
+
+/** What a player may know about a friend (never the private playerId, never a position). */
+export interface FriendInfo {
+  code: string;
+  name: string;
+  status: 'friend' | 'incoming' | 'outgoing';
+  online: boolean;
+  /** ms timestamp, only for friends. */
+  lastSeen?: number;
+}
+
+export interface FriendsInfo {
+  myCode: string;
+  friends: FriendInfo[];
+}
+
+export interface FriendFeedback {
+  ok: boolean;
+  text: string;
+}
+
+export const FRIEND_CODE_RE = /^FRIEND-[A-Z2-9]{4}$/;
+export const MAX_FRIENDS = 50;
+export const JOIN_FRIEND_COOLDOWN = 10;

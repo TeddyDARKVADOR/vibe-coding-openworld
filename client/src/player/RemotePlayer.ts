@@ -37,7 +37,8 @@ export class RemotePlayer {
   constructor(readonly id: string, readonly model: CharacterModel) {}
 
   push(t: number, s: { x: number; y: number; z: number; yaw: number; anim: number; emote: Emote }): void {
-    const last = this.buffer[this.buffer.length - 1];
+    let last: Snapshot | undefined = this.buffer[this.buffer.length - 1];
+    if (last && Math.hypot(s.x - last.x, s.z - last.z) > 30) { this.buffer = []; last = undefined; } // teleport: no glide
     // Patches only arrive when something changed: after a quiet period, re-anchor the
     // previous state just before this one so movement doesn't start with a jump.
     if (last && t - last.t > 100) this.buffer.push({ ...last, t: t - 50 });
