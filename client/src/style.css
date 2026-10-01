@@ -136,3 +136,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .fp-btns { display: flex; gap: 4px; }
 .fp-btns button.primary { background: #2f9e5a; color: #fff; }
 .fp-empty { opacity: .7; font-size: 13px; }
+
+/* Special place discovery banner */
+.poi-banner { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); text-align: center; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.7); pointer-events: none; transition: opacity .8s; }
+.poi-banner .poi-name { font-size: 26px; font-weight: 700; letter-spacing: .5px; color: #e6d2ff; }
+.poi-banner .poi-desc { font-size: 13px; opacity: .9; margin-top: 2px; }
+.poi-banner.fade { opacity: 0; }

@@ -10,22 +10,17 @@
  * are functions of *world* coordinates, not of the chunk, so they flow
  * continuously across chunk borders.
  */
-import { CHUNK_SIZE, HEX_RADIUS, HEX_SCALE, HEX_WIDTH, SPAWN_CLEAR_RADIUS, WORLD_SEED } from '../constants.ts';
+import { CHUNK_SIZE, HEX_RADIUS, HEX_SCALE, HEX_WIDTH, SPAWN_CLEAR_RADIUS } from '../constants.ts';
 import { cos30, sin30 } from '../math/angles.ts';
-import { Rng, hashFloat, hashInts, hashString } from '../math/rng.ts';
+import { Rng, hashFloat, hashInts } from '../math/rng.ts';
+import { HILL_THRESHOLD, LAKE_THRESHOLD, NOISE, SEED, VILLAGE_CHANCE, VILLAGE_RADIUS } from './seeds.ts';
+import { poiPieces, poisNear } from './poi.ts';
 import { HEX_DIRS, hexDistance, hexKey, hexToWorld, hexesInRect, type Hex } from './hex.ts';
 import { fbm2 } from './noise.ts';
 import { computeNetwork, roadCrossingsNear, type AxialBox } from './network.ts';
 import { coastTile, crossingTile, riverTile, roadTile } from './tiles.ts';
 import { cameraColliderForPlacement, colliderForPlacement, type ColliderSpec, type Placement } from './catalog.ts';
 
-const SEED = hashString(WORLD_SEED);
-const NOISE = {
-  lake: hashInts(SEED, 201),
-  mountain: hashInts(SEED, 202),
-  forest: hashInts(SEED, 203),
-  village: hashInts(SEED, 204),
-};
 
 export interface ChunkData {
   cx: number;
@@ -48,7 +43,6 @@ export function seedForChunk(cx: number, cz: number): number {
   return hashInts(SEED, 1, cx, cz);
 }
 
-const VILLAGE_RADIUS = 3;
 const COLORS = ['blue', 'red', 'green', 'yellow'] as const;
 const CENTRE_BUILDINGS = ['tavern', 'market', 'church', 'blacksmith', 'well', 'tavern', 'home_A'];
 const OUTER_BUILDINGS = ['home_A', 'home_B', 'home_A', 'home_B', 'home_A', 'windmill', 'lumbermill', 'home_B', 'barracks', 'archeryrange', 'tower_A'];
@@ -86,7 +80,7 @@ export function generateChunk(cx: number, cz: number): ChunkData {
   }
   const net = computeNetwork(box, regionKeys);
   const villages = roadCrossingsNear(box, VILLAGE_RADIUS + 1).filter(
-    (c) => (c.i === 0 && c.j === 0) || hashFloat(NOISE.village, c.i, c.j) < 0.6,
+    (c) => (c.i === 0 && c.j === 0) || hashFloat(NOISE.village, c.i, c.j) < VILLAGE_CHANCE,
   );
 
   const isNetwork = (q: number, r: number) => net.road.has(hexKey(q, r)) || net.river.has(hexKey(q, r));
@@ -105,12 +99,13 @@ export function generateChunk(cx: number, cz: number): ChunkData {
     let w = waterCache.get(k);
     if (w !== undefined) return w;
     const [x, z] = hexToWorld(q, r);
-    w = fbm2(NOISE.lake, x, z, 320) > 0.7 && spawnDistance(x, z) > 90 && !isNetwork(q, r) && !nearVillage({ q, r });
+    w = fbm2(NOISE.lake, x, z, 320) > LAKE_THRESHOLD && spawnDistance(x, z) > 90 && !isNetwork(q, r) && !nearVillage({ q, r });
     if (w) for (const [dq, dr] of HEX_DIRS) if (isNetwork(q + dq, r + dr)) { w = false; break; }
     waterCache.set(k, w);
     return w;
   };
 
+  const pois = poisNear(x0 + CHUNK_SIZE / 2, z0 + CHUNK_SIZE / 2, CHUNK_SIZE * 0.75 + 40);
   const placements: Placement[] = [];
   // Flat ground slab (top at y = 0). One per chunk: a single huge box loses float32 precision in Rapier.
   const half = CHUNK_SIZE / 2;
@@ -182,6 +177,7 @@ export function generateChunk(cx: number, cz: number): ChunkData {
 
     tile('hex_grass', randomRot60);
     if (spawnDistance(x, z) < SPAWN_CLEAR_RADIUS + HEX_RADIUS) continue; // keep the spawn meadow clear
+    if (pois.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + HEX_RADIUS)) continue; // special place: open ground
 
     // ---- Villages around road crossings.
     const village = nearVillage(h);
@@ -215,7 +211,7 @@ export function generateChunk(cx: number, cz: number): ChunkData {
 
     if (mountain > 0.68 && !roadside) {
       place({ model: rng.pick(MOUNTAINS), x, y: 0, z, rot30: randomRot60 * 2, scale: HEX_SCALE });
-    } else if (mountain > 0.62 && !roadside) {
+    } else if (mountain > HILL_THRESHOLD && !roadside) {
       place({ model: rng.pick(HILLS), x, y: 0, z, rot30: randomRot60 * 2, scale: HEX_SCALE });
     } else if (forest > 0.6 && !roadside) {
       place({ model: rng.pick(FORESTS), x, y: 0, z, rot30: randomRot60 * 2, scale: HEX_SCALE });
@@ -234,6 +230,14 @@ export function generateChunk(cx: number, cz: number): ChunkData {
         place({ model: rng.pick(['hill_single_A', 'hill_single_B', 'hill_single_C']), x, y: 0, z, rot30: rng.int(12), scale: HEX_SCALE });
       }
     }
+  }
+
+  // Special places: each piece belongs to the chunk containing its position.
+  const inChunk = (x: number, z: number) => chunkCoord(x) === cx && chunkCoord(z) === cz;
+  for (const poi of pois) {
+    const { pieces, blockers } = poiPieces(poi);
+    for (const p of pieces) if (inChunk(p.x, p.z)) place(p);
+    for (const b of blockers) if (inChunk(b.x, b.z)) colliders.push(b);
   }
 
   // A few decorative clouds high in the sky (no collision).

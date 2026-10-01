@@ -12,3 +12,5 @@ export * from './physics/PhysicsWorld.ts';
 export * from './sim/movement.ts';
 export * from './data/starters.ts';
 export * from './summons/SummonRegistry.ts';
+export * from './world/seeds.ts';
+export * from './world/poi.ts';

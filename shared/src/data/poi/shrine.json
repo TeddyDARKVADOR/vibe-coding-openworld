@@ -1,0 +1,20 @@
+{
+  "id": "shrine",
+  "name": "Sanctuaire",
+  "description": "Un petit autel éclairé de bougies, au calme.",
+  "weight": 3,
+  "radius": 9,
+  "pieces": [
+    { "model": "poi/floor_tile_large", "x": -2, "z": -2 },
+    { "model": "poi/floor_tile_large", "x": 2, "z": -2 },
+    { "model": "poi/floor_tile_large", "x": -2, "z": 2 },
+    { "model": "poi/floor_tile_large", "x": 2, "z": 2 },
+    { "model": "poi/shrine", "x": 0, "z": -2, "scale": 1.3 },
+    { "model": "poi/shrine_candles", "x": -2.6, "z": -2.6 },
+    { "model": "poi/shrine_candles", "x": 2.6, "z": -2.6 },
+    { "model": "poi/plaque_candles", "x": 0, "z": 1.2, "scale": 0.8 },
+    { "model": "poi/lantern_standing", "x": -3.4, "z": 3.4, "scale": 1.3 },
+    { "model": "poi/lantern_standing", "x": 3.4, "z": 3.4, "scale": 1.3 },
+    { "model": "poi/tree_dead_large", "x": -6, "z": -5, "rot30": 2, "scale": 1.2 }
+  ]
+}

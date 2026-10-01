@@ -1,0 +1,215 @@
+{
+  "id": "graveyard",
+  "name": "Vieux cimetière",
+  "description": "Une crypte entourée de tombes. Personne ne sait qui y repose.",
+  "weight": 2,
+  "radius": 14,
+  "pieces": [
+    {
+      "model": "poi/crypt",
+      "x": 0,
+      "z": -8
+    },
+    {
+      "model": "poi/gravestone",
+      "x": -6.5,
+      "z": 0,
+      "rot30": 1
+    },
+    {
+      "model": "poi/grave_A",
+      "x": -3.5,
+      "z": 0,
+      "rot30": 0
+    },
+    {
+      "model": "poi/gravemarker_A",
+      "x": 3.5,
+      "z": 0,
+      "rot30": 0
+    },
+    {
+      "model": "poi/gravestone",
+      "x": 6.5,
+      "z": 0,
+      "rot30": 0
+    },
+    {
+      "model": "poi/grave_A",
+      "x": -6.5,
+      "z": 3.5,
+      "rot30": 1
+    },
+    {
+      "model": "poi/gravemarker_A",
+      "x": -3.5,
+      "z": 3.5,
+      "rot30": 0
+    },
+    {
+      "model": "poi/gravestone",
+      "x": 3.5,
+      "z": 3.5,
+      "rot30": 0
+    },
+    {
+      "model": "poi/grave_A",
+      "x": 6.5,
+      "z": 3.5,
+      "rot30": 0
+    },
+    {
+      "model": "poi/gravemarker_A",
+      "x": -6.5,
+      "z": 7,
+      "rot30": 1
+    },
+    {
+      "model": "poi/gravestone",
+      "x": -3.5,
+      "z": 7,
+      "rot30": 0
+    },
+    {
+      "model": "poi/grave_A",
+      "x": 3.5,
+      "z": 7,
+      "rot30": 0
+    },
+    {
+      "model": "poi/gravemarker_A",
+      "x": 6.5,
+      "z": 7,
+      "rot30": 0
+    },
+    {
+      "model": "poi/fence",
+      "x": -8,
+      "z": 10.5
+    },
+    {
+      "model": "poi/fence",
+      "x": -4,
+      "z": 10.5
+    },
+    {
+      "model": "poi/fence",
+      "x": 4,
+      "z": 10.5
+    },
+    {
+      "model": "poi/fence",
+      "x": 8,
+      "z": 10.5
+    },
+    {
+      "model": "poi/fence",
+      "x": -10.5,
+      "z": -8.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": -10.5,
+      "z": -4.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": -10.5,
+      "z": -0.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": -10.5,
+      "z": 3.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": -10.5,
+      "z": 7.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": 10.5,
+      "z": -8.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": 10.5,
+      "z": -4.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": 10.5,
+      "z": -0.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": 10.5,
+      "z": 3.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence",
+      "x": 10.5,
+      "z": 7.5,
+      "rot30": 3
+    },
+    {
+      "model": "poi/fence_pillar",
+      "x": -10.5,
+      "z": 10.5
+    },
+    {
+      "model": "poi/fence_pillar",
+      "x": 10.5,
+      "z": 10.5
+    },
+    {
+      "model": "poi/fence_pillar",
+      "x": -2,
+      "z": 10.5
+    },
+    {
+      "model": "poi/fence_pillar",
+      "x": 2,
+      "z": 10.5
+    },
+    {
+      "model": "poi/tree_dead_large",
+      "x": -7.5,
+      "z": -8,
+      "scale": 1.3
+    },
+    {
+      "model": "poi/tree_dead_large",
+      "x": 7.5,
+      "z": -9,
+      "rot30": 5,
+      "scale": 1.1
+    },
+    {
+      "model": "poi/post_lantern",
+      "x": 2.8,
+      "z": 12,
+      "rot30": 6
+    },
+    {
+      "model": "poi/skull_candle",
+      "x": -1.6,
+      "z": -3.2
+    },
+    {
+      "model": "poi/skull_candle",
+      "x": 1.6,
+      "z": -3.2
+    }
+  ]
+}

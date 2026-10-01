@@ -6,17 +6,33 @@
  * scripts/prepare-assets.mjs (assetBounds.generated.ts).
  */
 import { ASSET_BOUNDS } from './assetBounds.generated.ts';
+import { POI_BOUNDS } from './poiBounds.generated.ts';
+
+const boundsOf = (model: string) => ASSET_BOUNDS[model] ?? POI_BOUNDS[model];
 import { rotateXZ } from '../math/angles.ts';
 
 export type ColliderKind =
   | { kind: 'none' }
   | { kind: 'box'; shrink: number }
   | { kind: 'cylinder'; radiusFactor: number }
-  | { kind: 'hull' };
+  | { kind: 'hull' }
+  /** Thin vertical cylinder at the model origin (posts, dead trees). */
+  | { kind: 'post'; radius: number };
 
 const NONE: ColliderKind = { kind: 'none' };
 
+/** Special-place models (KayKit Dungeon / Halloween). Flat or wall-mounted decorations don't collide. */
+function poiColliderKind(name: string): ColliderKind {
+  if (/^(pillar|column|wall_broken|wall_half|rubble_|crypt|barrier_column|gravestone)/.test(name)) return { kind: 'hull' };
+  if (/^(chest_|shrine|grave_|fence)/.test(name)) return { kind: 'box', shrink: 0.95 };
+  if (name === 'tree_dead_large') return { kind: 'post', radius: 0.2 };
+  if (name === 'post_lantern') return { kind: 'post', radius: 0.15 };
+  if (name === 'lantern_standing') return { kind: 'post', radius: 0.22 };
+  return NONE; // floor tiles, banners, candles, arches (see PoiDefinition.blockers)...
+}
+
 export function colliderKindFor(model: string): ColliderKind {
+  if (model.startsWith('poi/')) return poiColliderKind(model.slice(4));
   if (model.startsWith('hex_')) return NONE; // ground handled globally, water by chunk generator
   if (model.startsWith('building_grain')) return { kind: 'box', shrink: 0.95 }; // raised crop field (2.3 m)
   if (model.startsWith('building_well')) return { kind: 'cylinder', radiusFactor: 0.85 };
@@ -58,7 +74,7 @@ export type ColliderSpec = (
  */
 export function cameraColliderForPlacement(p: Placement): ColliderSpec | null {
   if (!p.model.startsWith('tree') && !/^(hills|mountain)_.*trees$/.test(p.model)) return null;
-  const b = ASSET_BOUNDS[p.model];
+  const b = boundsOf(p.model);
   if (!b) return null;
   const s = p.scale;
   const hx = ((b.max[0] - b.min[0]) / 2) * s, hz = ((b.max[2] - b.min[2]) / 2) * s;
@@ -75,7 +91,7 @@ export function cameraColliderForPlacement(p: Placement): ColliderSpec | null {
 export function colliderForPlacement(p: Placement): ColliderSpec | null {
   const kind = colliderKindFor(p.model);
   if (kind.kind === 'none') return null;
-  const b = ASSET_BOUNDS[p.model];
+  const b = boundsOf(p.model);
   if (!b) throw new Error(`No bounds for model ${p.model} (run npm run assets:prepare)`);
   const s = p.scale;
   if (kind.kind === 'hull') {
@@ -83,9 +99,12 @@ export function colliderForPlacement(p: Placement): ColliderSpec | null {
     for (const [x, y, z] of b.hull) points.push(x * s, y * s, z * s);
     return { shape: 'hull', x: p.x, y: p.y, z: p.z, rot30: p.rot30, points };
   }
+  const y0 = Math.max(0, b.min[1]) * s, y1 = b.max[1] * s;
+  if (kind.kind === 'post') {
+    return { shape: 'cylinder', x: p.x, y: p.y + (y0 + y1) / 2, z: p.z, halfHeight: (y1 - y0) / 2, radius: kind.radius * s };
+  }
   const cx = ((b.min[0] + b.max[0]) / 2) * s, cz = ((b.min[2] + b.max[2]) / 2) * s;
   const hx = ((b.max[0] - b.min[0]) / 2) * s, hz = ((b.max[2] - b.min[2]) / 2) * s;
-  const y0 = Math.max(0, b.min[1]) * s, y1 = b.max[1] * s;
   const [ox, oz] = rotateXZ(cx, cz, p.rot30);
   if (kind.kind === 'box') {
     return {

@@ -24,6 +24,7 @@ import { TargetSystem, type Targetable } from '../combat/TargetSystem.ts';
 import { CombatFeedback } from '../combat/CombatFeedback.ts';
 import { AbilityBar } from '../ui/AbilityBar.ts';
 import { FriendsPanel } from '../ui/FriendsPanel.ts';
+import { PoiTracker } from '../poi/PoiTracker.ts';
 import { ChatBox, NameTag, PlayerList, compass } from './social.ts';
 import type { PlayerProfile } from './EntryScreen.ts';
 import { ui } from './ui.ts';
@@ -49,6 +50,10 @@ export class Game {
   private labels!: CSS2DRenderer;
   private chat!: ChatBox;
   private minimap = new Minimap();
+  private poiTracker = new PoiTracker((poi, first) => {
+    this.audio.play(first ? 'unlock' : 'notify');
+    if (first) this.chat?.add('', `Lieu découvert : ${poi.type.name}`, true);
+  });
   private playerList = new PlayerList();
   private tags = new Map<string, NameTag>();
   private myTag: NameTag | null = null;
@@ -459,7 +464,10 @@ export class Game {
 
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
-    if (now - this.hudTime > 100) { this.hudTime = now; this.updateHud(false); this.updateSummonHud(); }
+    if (now - this.hudTime > 100) {
+      this.hudTime = now; this.updateHud(false); this.updateSummonHud();
+      if (this.player) this.poiTracker.update(this.player.state.x, this.player.state.z);
+    }
 
     this.frames++;
     if (now - this.fpsTime > 1000) { this.fps = (this.frames * 1000) / (now - this.fpsTime); this.frames = 0; this.fpsTime = now; }

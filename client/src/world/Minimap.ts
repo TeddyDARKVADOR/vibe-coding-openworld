@@ -5,7 +5,7 @@
  * appear as arrows on the rim with their distance, so friends can find each
  * other in the huge world.
  */
-import { CHUNK_SIZE, HEX_RADIUS, chunkCoord, chunkKey } from '@openworld/shared';
+import { CHUNK_SIZE, HEX_RADIUS, chunkCoord, chunkKey, poisNear } from '@openworld/shared';
 import type { WorldManager } from './WorldManager.ts';
 import { formatDistance } from '../game/social.ts';
 
@@ -82,6 +82,20 @@ export class Minimap {
         }
       }
     }
+
+    // Special places: a diamond and their name.
+    ctx.font = 'bold 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (const poi of poisNear(px, pz, RANGE)) {
+      const [sx, sy] = toScreen(poi.x, poi.z);
+      if (Math.hypot(sx - R, sy - R) > R - 6) continue;
+      ctx.fillStyle = '#b07cff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx + 5, sy); ctx.lineTo(sx, sy + 6); ctx.lineTo(sx - 5, sy); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(poi.type.name, sx, sy + 16);
+    }
+    ctx.lineWidth = 1;
 
     // Other players: dot in range, arrow + distance on the rim otherwise.
     ctx.font = '10px system-ui, sans-serif';

@@ -12,6 +12,11 @@ const VIEWS = [
   { name: 'lake', spawn: [-24, -205], look: [-24, -260], pitch: 0.3, dist: 9 },
   { name: 'bridge', spawn: [204, 285], look: [204, 312], pitch: 0.4, dist: 9 },
   { name: 'mountains', spawn: [-216, -200], look: [-216, -260], pitch: 0.25, dist: 9 },
+  { name: 'poi-meeting', spawn: [-24, -28], look: [-36, -21], pitch: 0.3, dist: 9 },
+  { name: 'poi-ruins', spawn: [-247, -75], look: [-238, -59], pitch: 0.3, dist: 9 },
+  { name: 'poi-shrine', spawn: [-268, 246], look: [-255, 253], pitch: 0.3, dist: 9 },
+  { name: 'poi-arena', spawn: [-163, 475], look: [-153, 493], pitch: 0.35, dist: 10 },
+  { name: 'poi-graveyard', spawn: [-965, 543], look: [-955, 526], pitch: 0.3, dist: 10 },
   { name: 'far', spawn: [12500, -8300], look: [12500, -8400], pitch: 0.3, dist: 9 },
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

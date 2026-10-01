@@ -1,0 +1,24 @@
+{
+  "id": "ruins",
+  "name": "Ruines anciennes",
+  "description": "Les restes d'un vieux fort : murs effondrés et un coffre oublié.",
+  "weight": 3,
+  "radius": 13,
+  "pieces": [
+    { "model": "poi/floor_tile_large_rocks", "x": -2, "z": -2 },
+    { "model": "poi/floor_tile_large", "x": 2, "z": -2 },
+    { "model": "poi/floor_tile_large", "x": -2, "z": 2 },
+    { "model": "poi/floor_tile_large_rocks", "x": 2, "z": 2, "rot30": 3 },
+    { "model": "poi/wall_broken", "x": 0, "z": -6 },
+    { "model": "poi/banner_patternA_red", "x": -1, "z": -6 },
+    { "model": "poi/wall_half", "x": -6, "z": -4, "rot30": 3 },
+    { "model": "poi/pillar", "x": 5, "z": -6 },
+    { "model": "poi/pillar", "x": 5, "z": 5 },
+    { "model": "poi/column", "x": -5, "z": 4 },
+    { "model": "poi/column", "x": -1.5, "z": 6 },
+    { "model": "poi/rubble_large", "x": 3, "z": 9, "rot30": 2 },
+    { "model": "poi/rubble_half", "x": -9, "z": 2, "rot30": 7 },
+    { "model": "poi/chest_gold", "x": 0, "z": -4.4 },
+    { "model": "poi/barrier_column", "x": 8.5, "z": -1, "rot30": 3 }
+  ]
+}
