@@ -23,6 +23,9 @@ const EMOTE_POSES: Record<Exclude<Emote, Emote.None>, Pose> = {
   [Emote.Lie]: { clip: 'Lie_Down', then: 'Lie_Idle', timeScale: 1 },
 };
 
+const DEAD_POSE: Pose = { clip: 'Death_A', timeScale: 1 };
+const HIT_POSE: Pose = { clip: 'Hit_A', timeScale: 1 };
+
 export class CharacterModel {
   /** Root placed at the character's feet; rotation.y = facing. */
   readonly root = new THREE.Group();
@@ -64,8 +67,23 @@ export class CharacterModel {
     return new CharacterModel(await assets.loadCharacter(name), characterIndex);
   }
 
+  private hitUntil = 0;
+
+  /** Short "hit" reaction (KayKit Hit_A), on top of the current pose. */
+  playHit(): void {
+    if (this.currentPose === DEAD_POSE) return;
+    this.hitUntil = performance.now() + 450;
+    this.currentPose = HIT_POSE;
+    this.fadeTo(HIT_POSE.clip, 1.4, 0.08, false);
+  }
+
   /** Plays the movement animation, or the emote when standing still. */
-  setPose(anim: Anim, emote: Emote, fade = 0.2): void {
+  setPose(anim: Anim, emote: Emote, fade = 0.2, dead = false): void {
+    if (dead) {
+      if (this.currentPose !== DEAD_POSE) { this.currentPose = DEAD_POSE; this.fadeTo(DEAD_POSE.clip, 1, 0.15, false); }
+      return;
+    }
+    if (performance.now() < this.hitUntil) return;
     const pose = (anim === Anim.Idle && emote ? EMOTE_POSES[emote as Exclude<Emote, Emote.None>] : undefined) ?? MOVE_POSES[anim] ?? MOVE_POSES[Anim.Idle];
     if (pose === this.currentPose) return;
     this.currentPose = pose;

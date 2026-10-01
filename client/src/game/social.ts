@@ -15,6 +15,16 @@ export class NameTag {
   private nameEl: HTMLDivElement;
   private bubbleEl: HTMLDivElement;
   private bubbleTimer = 0;
+  private hpEl: HTMLDivElement;
+
+  /** Health bar under the name (hidden while full). */
+  setHp(hp: number, maxHp: number): void {
+    const r = Math.max(0, Math.min(1, hp / Math.max(1, maxHp)));
+    this.hpEl.classList.toggle('hidden', r >= 0.999);
+    const fill = this.hpEl.firstElementChild as HTMLElement;
+    fill.style.width = `${Math.round(r * 100)}%`;
+    fill.style.background = r > 0.5 ? '#5cd65c' : r > 0.25 ? '#f0c040' : '#e05050';
+  }
 
   constructor(name: string, private showName = true) {
     const root = document.createElement('div');
@@ -23,7 +33,10 @@ export class NameTag {
     this.bubbleEl.className = 'tag-bubble hidden';
     this.nameEl = document.createElement('div');
     this.nameEl.className = 'tag-name';
-    root.append(this.bubbleEl, this.nameEl);
+    this.hpEl = document.createElement('div');
+    this.hpEl.className = 'hpbar hidden';
+    this.hpEl.append(document.createElement('div'));
+    root.append(this.bubbleEl, this.nameEl, this.hpEl);
     this.object = new CSS2DObject(root);
     this.setName(name);
     this.nameEl.classList.toggle('hidden', !showName);

@@ -25,7 +25,7 @@
 
     <div id="loading" class="loading hidden"><div class="loading-box"><div class="loading-title">Chargement du monde…</div><div class="bar"><div id="loading-bar"></div></div><div id="loading-text"></div></div></div>
     <div id="status" class="status hidden"></div>
-    <div id="hint" class="hint hidden">Clic : caméra · ZQSD/WASD : marcher · Maj : courir · Espace : sauter · Entrée : chat · 1 2 3 : emotes · B : invocations · X : invoquer · M : carte · Tab : joueurs · F3 : debug</div>
+    <div id="hint" class="hint hidden">Clic : caméra · ZQSD/WASD : marcher · Maj : courir · Espace : sauter · Entrée : chat · 1 2 3 : emotes · B : invocations · X : invoquer · T / clic : cibler · Clic Q E R : attaques · M : carte · Tab : joueurs · F3 : debug</div>
     <pre id="debug" class="debug hidden"></pre>
 
     <div id="chat" class="chat hidden">
@@ -40,6 +40,10 @@
       <button id="btn-friends" title="Amis (F)">Amis</button>
       <button id="btn-mute" title="Son">🔊</button>
     </div>
+ <div id="player-hud" class="player-hud hidden"><span class="ph-name"></span><div class="hpbar"><div></div></div></div>
+    <div id="target-frame" class="target-frame hidden"><span class="tf-name"></span><div class="hpbar"><div></div></div><span class="tf-hp"></span></div>
+    <div id="ability-bar" class="ability-bar hidden"></div>
+    <div id="ko" class="ko hidden"><div>K.O. !</div><small>Réapparition dans quelques secondes…</small></div>
     <div id="summon-hud" class="summon-hud hidden"><span class="sh-name"></span><div class="hpbar"><div></div></div><span class="sh-state"></span></div>
 
     <div id="summons-panel" class="panel summons-panel hidden">

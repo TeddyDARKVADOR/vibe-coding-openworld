@@ -103,3 +103,20 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .sp-buttons button:disabled { opacity: .6; cursor: default; }
 .sp-reveal { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: var(--r); color: #fff; font-weight: 600; animation: pop .5s ease-out; }
 @keyframes pop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ---- combat HUD */
+.player-hud { position: fixed; left: 12px; bottom: 260px; display: flex; flex-direction: column; gap: 3px; padding: 6px 10px; border-radius: 8px; background: rgba(20, 30, 40, .5); color: #fff; font-size: 12px; }
+.player-hud .hpbar { width: 140px; height: 9px; }
+.target-frame { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: rgba(90, 20, 20, .6); color: #fff; font-size: 13px; }
+.target-frame .hpbar { width: 120px; height: 8px; }
+.target-frame .tf-hp { font-size: 11px; opacity: .85; }
+.ability-bar { position: fixed; bottom: 46px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+.ab-slot { position: relative; width: 58px; height: 58px; border-radius: 10px; background-color: rgba(20, 30, 40, .65); background-size: 80%; background-repeat: no-repeat; background-position: center; border: 2px solid rgba(255,255,255,.35); cursor: pointer; overflow: hidden; }
+.ab-key { position: absolute; top: 2px; left: 4px; color: #fff; font-size: 11px; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.ab-name { position: absolute; bottom: 1px; left: 0; right: 0; text-align: center; color: #fff; font-size: 9px; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; }
+.ab-cd { position: absolute; bottom: 0; left: 0; right: 0; height: 0; background: rgba(0,0,0,.6); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; }
+.dmg-number { color: #ffe066; font-weight: 800; font-size: 16px; text-shadow: 0 1px 3px #000, 0 0 6px rgba(0,0,0,.6); pointer-events: none; }
+.dmg-number.mine { color: #ff5a5a; }
+.ko { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(rgba(80,0,0,.15), rgba(60,0,0,.55)); color: #fff; font-size: 44px; font-weight: 800; text-shadow: 0 2px 8px #000; pointer-events: none; }
+.ko small { font-size: 15px; font-weight: 400; }
+@media (max-height: 500px) { .player-hud { bottom: auto; top: 50px; } .summon-hud { bottom: auto; top: 96px; } }

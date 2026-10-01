@@ -20,6 +20,9 @@ import { AudioManager } from '../audio/AudioManager.ts';
 import { SummonsClient } from '../summons/SummonsClient.ts';
 import { SummonsPanel } from '../ui/SummonsPanel.ts';
 import type { NetSummon } from '../summons/SummonView.ts';
+import { TargetSystem, type Targetable } from '../combat/TargetSystem.ts';
+import { CombatFeedback } from '../combat/CombatFeedback.ts';
+import { AbilityBar } from '../ui/AbilityBar.ts';
 import { ChatBox, NameTag, PlayerList, compass } from './social.ts';
 import type { PlayerProfile } from './EntryScreen.ts';
 import { ui } from './ui.ts';
@@ -56,6 +59,10 @@ export class Game {
   private summons!: SummonsClient;
   private summonsPanel!: SummonsPanel;
   private lastSummons: NetSummon[] = [];
+  private targets!: TargetSystem;
+  private feedback!: CombatFeedback;
+  private abilityBar!: AbilityBar;
+  private myDead = false;
   private pendingToast: string | null = null;
   private input!: Input;
   private net: NetworkManager;
@@ -84,6 +91,20 @@ export class Game {
       onConnectionChange: (s) => this.onConnectionChange(s),
       onChat: (m) => this.onChat(m),
       onCollection: (c) => this.summonsPanel?.setCollection(c),
+      onAbility: (e) => {
+        this.feedback?.ability(e);
+        if (e.owner === this.net.sessionId) this.abilityBar?.startCooldown(e.ability, e.cooldown);
+      },
+      onDamage: (e) => {
+        const mine = e.target === `p:${this.net.sessionId}`;
+        this.feedback?.damage(e, mine);
+        if (mine) this.player?.model.playHit();
+      },
+      onDeath: (e) => {
+        if (!this.chat) return;
+        this.chat.add('', e.target.startsWith('s:') ? `${e.victimName} a été vaincu par ${e.killerName}.` : `${e.victimName} est K.O. (par ${e.killerName}).`, true);
+        this.audio.play('death', this.positionOf(e.target) ?? undefined);
+      },
       onProfile: (p) => { if (p.restored) this.pendingToast = 'Position précédente restaurée'; },
     });
   }
@@ -96,6 +117,10 @@ export class Game {
     this.input.onToggleMap = () => { if (!this.chat?.isOpen) this.minimap.visible = !this.minimap.visible; };
     this.input.onPlayerList = (show) => { this.playerList.visible = show; if (show) this.updateHud(true); };
     this.input.onKeyPress = (code) => this.onKey(code);
+    this.input.onPrimary = (x, y, locked) => this.onPrimary(x, y, locked);
+    this.targets = new TargetSystem(this.scene, (ref) => this.net.sendTarget(ref));
+    this.feedback = new CombatFeedback(this.scene, this.vfx, this.audio, (ref) => this.positionOf(ref));
+    this.abilityBar = new AbilityBar((i) => this.useAbility(i));
     this.scene.add(this.vfx.group);
     this.summons = new SummonsClient(this.scene, this.assets, this.vfx, this.audio, () => this.net.sessionId,
       (id) => this.lastSnapshot.find((p) => p.id === id)?.name ?? '?', (e) => this.fail('Ressource introuvable', e instanceof Error ? e.message : String(e)));
@@ -229,6 +254,7 @@ export class Game {
     for (const p of players) {
       if (p.id === this.net.sessionId) {
         this.player.reconcile(p);
+        this.updatePlayerHud(p);
         continue;
       }
       if (!this.announced.has(p.id)) {
@@ -238,6 +264,8 @@ export class Game {
       const remote = this.remotes.get(p.id);
       if (remote) {
         remote.push(t, p);
+        remote.setCombat(p.hp, p.maxHp, p.dead, p.hitSeq);
+        this.tags.get(p.id)?.setHp(p.dead ? 0 : p.hp, p.maxHp);
         if (remote.name !== p.name) { remote.name = p.name; this.tags.get(p.id)?.setName(p.name); }
       } else this.addRemote(p, t);
     }
@@ -253,8 +281,55 @@ export class Game {
   private onKey(code: string): void {
     if (this.chat?.isOpen || !this.player) return;
     if (code === 'KeyB') this.summonsPanel.toggle();
+    else if (code === 'KeyT') this.targets.cycle(this.player.state, this.targetables());
+    else if (code === 'KeyQ') this.useAbility(1);
+    else if (code === 'KeyE') this.useAbility(2);
+    else if (code === 'KeyR') this.useAbility(3);
     else if (code === 'KeyX') this.toggleSummon();
     else if (code === 'Escape') this.summonsPanel.toggle(false);
+  }
+
+  /** Click: in aim mode = basic attack (picking what is under the crosshair if needed); otherwise select what was clicked. */
+  private onPrimary(x: number, y: number, locked: boolean): void {
+    if (!this.player || this.chat.isOpen || this.summonsPanel.visible) return;
+    if (locked) {
+      if (!this.targets.ref) this.targets.pick(innerWidth / 2, innerHeight / 2, this.camera, this.targetables(), this.originX, this.originZ);
+      if (this.targets.ref) this.useAbility(0);
+    } else {
+      this.targets.pick(x, y, this.camera, this.targetables(), this.originX, this.originZ);
+    }
+  }
+
+  private useAbility(i: number): void {
+    if (!this.summons.mine() || this.myDead) return;
+    this.net.sendAbility(i);
+  }
+
+  /** Everything that can be attacked by me (others and their summons). */
+  private targetables(): Targetable[] {
+    const me = this.net.sessionId;
+    const out: Targetable[] = [];
+    for (const r of this.remotes.values()) {
+      out.push({ ref: `p:${r.id}`, name: r.name, ...r.world, hp: r.hp, maxHp: r.maxHp, alive: !r.dead, height: 1 });
+    }
+    for (const [owner, v] of this.summons.views) {
+      if (owner === me) continue;
+      out.push({ ref: `s:${owner}`, name: `${v.def.name} (${this.nameOfId(owner)})`, ...v.world, hp: v.last.hp, maxHp: v.last.maxHp, alive: v.last.mode !== 5 && v.last.mode !== 0, height: 1 });
+    }
+    return out;
+  }
+
+  private nameOfId(id: string): string {
+    return this.lastSnapshot.find((p) => p.id === id)?.name ?? '?';
+  }
+
+  /** World position of a combat target ref (interpolated, as displayed). */
+  private positionOf(ref: string): { x: number; y: number; z: number } | null {
+    const id = ref.slice(2);
+    if (ref.startsWith('s:')) { const v = this.summons.views.get(id); return v ? { ...v.world } : null; }
+    if (id === this.net.sessionId && this.player) return { x: this.player.state.x, y: this.player.state.y, z: this.player.state.z };
+    const r = this.remotes.get(id);
+    return r ? { ...r.world } : null;
   }
 
   private toggleSummon(): void {
@@ -355,6 +430,9 @@ export class Game {
     this.summons.update(now, dt, this.originX, this.originZ, pos);
     this.vfx.setOrigin(this.originX, this.originZ);
     this.vfx.update(dt);
+    this.feedback.update(dt, this.originX, this.originZ);
+    this.targets.update(dt, this.targetables(), pos, this.originX, this.originZ);
+    this.abilityBar.update();
     this.audio.setListener(pos.x, pos.z);
 
     for (const r of this.remotes.values()) {
@@ -377,9 +455,22 @@ export class Game {
     if (this.debugVisible && now - this.debugTime > 200) { this.debugTime = now; this.updateDebug(pos); }
   }
 
+  private updatePlayerHud(p: NetPlayer): void {
+    const hud = document.getElementById('player-hud')!;
+    hud.classList.remove('hidden');
+    (hud.querySelector('.ph-name') as HTMLElement).textContent = `${p.name} — ${Math.ceil(p.hp)}/${p.maxHp} PV`;
+    (hud.querySelector('.hpbar > div') as HTMLElement).style.width = `${Math.round((p.hp / Math.max(1, p.maxHp)) * 100)}%`;
+    if (p.dead !== this.myDead) {
+      this.myDead = p.dead;
+      document.getElementById('ko')!.classList.toggle('hidden', !p.dead);
+      if (!p.dead) this.chat.add('', 'Tu es de retour au point de départ.', true);
+    }
+  }
+
   private updateSummonHud(): void {
     const hud = document.getElementById('summon-hud')!;
     const v = this.summons.mine();
+    this.abilityBar.setSummon(v ? v.def : null);
     hud.classList.toggle('hidden', !v);
     if (!v) return;
     const s = v.last;

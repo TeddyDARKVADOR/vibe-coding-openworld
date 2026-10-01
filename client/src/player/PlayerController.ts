@@ -20,7 +20,7 @@ import type { ThirdPersonCamera } from '../camera/ThirdPersonCamera.ts';
 type Collider = ReturnType<PhysicsWorld['createCharacterCollider']>;
 
 export interface ServerPlayerState {
-  x: number; y: number; z: number; vy: number; yaw: number; anim: number; ack: number; grounded: boolean;
+  x: number; y: number; z: number; vy: number; yaw: number; anim: number; ack: number; grounded: boolean; dead: boolean;
 }
 
 export class PlayerController {
@@ -87,7 +87,7 @@ export class PlayerController {
   reconcile(s: ServerPlayerState): void {
     this.pending = this.pending.filter((i) => i.seq > s.ack);
     const before = { x: this.state.x, y: this.state.y, z: this.state.z };
-    Object.assign(this.state, { x: s.x, y: s.y, z: s.z, vy: s.vy, yaw: s.yaw, anim: s.anim as Anim, grounded: s.grounded });
+    Object.assign(this.state, { x: s.x, y: s.y, z: s.z, vy: s.vy, yaw: s.yaw, anim: s.anim as Anim, grounded: s.grounded, frozen: s.dead });
     for (const i of this.pending) this.simulate(i);
     const ex = before.x - this.state.x, ey = before.y - this.state.y, ez = before.z - this.state.z;
     const err = Math.hypot(ex, ey, ez);
@@ -113,7 +113,7 @@ export class PlayerController {
     this.visualYaw = lerpAngle(this.visualYaw, this.state.yaw, Math.min(1, dt * 14));
     this.model.root.rotation.y = this.visualYaw;
     if (this.state.anim !== Anim.Idle) this.emote = Emote.None;
-    this.model.setPose(this.state.anim, this.emote);
+    this.model.setPose(this.state.anim, this.emote, 0.2, !!this.state.frozen);
     this.model.update(dt);
   }
 

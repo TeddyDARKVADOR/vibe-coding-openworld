@@ -16,6 +16,8 @@ export class Input {
   onPlayerList: (show: boolean) => void = () => {};
   /** Any other single key press (KeyB, KeyX, KeyQ...), not repeated. */
   onKeyPress: (code: string) => void = () => {};
+  /** Primary click: `locked` = pointer lock active (aiming with the screen centre). */
+  onPrimary: (x: number, y: number, locked: boolean) => void = () => {};
 
   constructor(element: HTMLElement) {
     addEventListener('keydown', (e) => {
@@ -36,7 +38,10 @@ export class Input {
     element.addEventListener('click', () => {
       if (document.pointerLockElement !== element) element.requestPointerLock?.()?.catch?.(() => {});
     });
-    element.addEventListener('mousedown', () => { this.dragging = true; });
+    element.addEventListener('mousedown', (e) => {
+      this.dragging = true;
+      if (e.button === 0) this.onPrimary(e.clientX, e.clientY, document.pointerLockElement === element);
+    });
     addEventListener('mouseup', () => { this.dragging = false; });
     addEventListener('mousemove', (e) => {
       if (document.pointerLockElement === element || this.dragging) {

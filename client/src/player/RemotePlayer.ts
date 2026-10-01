@@ -22,6 +22,17 @@ export class RemotePlayer {
   readonly world = { x: 0, y: 0, z: 0 };
 
   name = '';
+  dead = false;
+  hp = 100;
+  maxHp = 100;
+  private hitSeq = -1;
+
+  /** Combat state from the latest snapshot. */
+  setCombat(hp: number, maxHp: number, dead: boolean, hitSeq: number): void {
+    this.hp = hp; this.maxHp = maxHp; this.dead = dead;
+    if (this.hitSeq >= 0 && hitSeq !== this.hitSeq && !dead) this.model.playHit();
+    this.hitSeq = hitSeq;
+  }
 
   constructor(readonly id: string, readonly model: CharacterModel) {}
 
@@ -57,7 +68,7 @@ export class RemotePlayer {
     root.position.set(this.world.x - originX, this.world.y, this.world.z - originZ);
     root.rotation.y = lerpAngle(root.rotation.y, lerpAngle(a.yaw, c.yaw, t), Math.min(1, dt * 14));
     const snap = t < 0.5 ? a : c;
-    this.model.setPose(snap.anim, snap.emote);
+    this.model.setPose(snap.anim, snap.emote, 0.2, this.dead);
     this.model.update(dt);
   }
 
