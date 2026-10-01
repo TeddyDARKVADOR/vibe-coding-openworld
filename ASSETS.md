@@ -104,3 +104,72 @@ No visual geometry is generated in code.
 three.js (MIT), @dimforge/rapier3d-compat (Apache-2.0), Colyseus + @colyseus/sdk
 (MIT), Vite (MIT), TypeScript (Apache-2.0), concurrently (MIT), tsx (MIT),
 @gltf-transform (MIT, asset preparation only), Playwright (Apache-2.0, dev tests only).
+
+---
+
+# Game-system assets (summons, mount, places, VFX, audio)
+
+Downloaded 2026-10-01 with `scripts/fetch-assets.sh` (pinned commits) and prepared by
+`scripts/prepare-game-assets.mjs`. In the build environment only GitHub was reachable
+(quaternius.com, kenney.nl, opengameart.org, poly.pizza and itch.io were blocked), so CC0
+packs were taken from public GitHub repositories that redistribute them with their
+provenance. CC0 allows redistribution; each mirror below states the original author,
+source and license.
+
+## Summons — Quaternius "Ultimate Monsters" (CC0 1.0)
+- **Creator:** Quaternius — <https://quaternius.com/packs/ultimatemonsters.html>
+- **Mirror used:** <https://github.com/PostWorkCulture/bomberfan> (`assets/characters/`, commit
+  `f005fc4b943776002b51caf63ca0d1170110b0cb`), whose `LICENSE.txt` states "Ultimate Monsters, created by
+  Quaternius, License: CC0 1.0". That project ships colour-enhanced textures of the same models.
+- **Files:** `yeti`, `demon`, `mushroom-king`, `dino`, `orc`, `alien`, `evolved-dragon` →
+  `client/public/assets/summons/*.glb` (glTF + .bin + .png packed into GLB, unchanged otherwise).
+- **Animations:** the models' own clips (Idle, Walk, Run, Punch, Weapon, HitReact, Death, Jump…;
+  the dragon: Flying_Idle, Fast_Flying, Headbutt, Punch, HitReact, Death). No retargeting.
+- **Usage:** summons (definitions in `shared/src/data/summons/*.json`).
+
+## Mount — Quaternius "Ultimate Animated Animal Pack", Horse (CC0 1.0)
+- **Creator:** Quaternius — <https://quaternius.com/packs/ultimateanimatedanimals.html>
+  (also <https://poly.pizza/m/qvTrSG9pZF>)
+- **Mirror used:** <https://github.com/jpabloglez/trailpaw> `assets/animals/horse/horse.glb`
+  (Git LFS, commit `9dda59715e8e6f5a1e6b3201d595fe8fd141e312`), listed in its `assets/CREDITS.md` as
+  "Quaternius, Ultimate Animated Animal Pack (via Poly Pizza mirror), CC0 1.0".
+- **File:** `client/public/assets/mounts/horse.glb`. Modification: the source contained every
+  clip twice (once prefixed `AnimalArmature|`); duplicates removed.
+- **Usage:** mount (Idle, Walk, Gallop). Definition: `shared/src/data/mounts/horse.json`.
+
+## Places — KayKit Dungeon Remastered 1.0 & KayKit Halloween Bits 1.0 (CC0 1.0)
+- **Creator:** Kay Lousberg — official repositories
+  <https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0> (commit `b0ca9bd9…`) and
+  <https://github.com/KayKit-Game-Assets/KayKit-Halloween-Bits-1.0> (commit `6dc69bf6…`).
+- **Files:** pillars, columns, broken/arched walls, rubble, floor tiles, banners, torches, chest,
+  stairs (Dungeon); shrine, arch gate, crypt, graves, fences, lanterns, dead tree, candles (Halloween)
+  → `client/public/assets/poi/*.glb`. License files kept next to them.
+- **Usage:** points of interest (definitions in `shared/src/data/poi/*.json`), together with
+  Medieval Hexagon buildings.
+
+## VFX — Kenney Particle Pack (CC0 1.0)
+- **Creator:** Kenney — <https://kenney.nl/assets/particle-pack>
+- **Mirror used:** <https://github.com/Calinou/kenney-particle-pack> (commit `ab708663…`, includes Kenney's license).
+- **Files:** `circle_05, magic_02, magic_05, spark_05, star_07, smoke_05, flare_01, light_01, twirl_02,
+  slash_03, scorch_02, dirt_02` → `client/public/assets/vfx/`.
+- **Usage:** sprites for summon circles, impacts, projectiles, auras, dust.
+
+## Audio — Kenney & OpenGameArt (all CC0 1.0)
+- **Mirror used:** <https://github.com/Mcamento8/open-game-sfx-index> (commit `34bbe8b5…`; its `SOURCES.md`
+  lists every upstream pack page and its verified CC0 license).
+
+| File | Original | Author / pack |
+|---|---|---|
+| summon.wav | Rise03.wav | wobbleboxx, *Level up, power up, coin get* (OpenGameArt) |
+| unlock.wav | Upper01.wav | wobbleboxx, same pack |
+| hit.ogg / hit_heavy.ogg / hurt.ogg | impactPunch_medium_000 / impactPunch_heavy_000 / impactSoft_heavy_000 | Kenney, Impact Sounds |
+| swing.wav / dash.wav | swish_2 / swish_4 | Ogrebane, *Battle sound effects* (OpenGameArt) |
+| projectile.wav / buff.wav / death.wav | magic1 / spell / giant3 | artisticdude, *RPG sound pack* (OpenGameArt) |
+| aoe.ogg | lowFrequency_explosion_000 | Kenney, Sci-fi Sounds |
+| click.ogg / notify.ogg | click_002 / confirmation_002 | Kenney, Interface Sounds |
+| mount.ogg / dismount.ogg | cloth2 / dropLeather | Kenney, RPG Audio |
+| ambience_birds.ogg | meadow_birds.ogg | isaiah658, *Ambient Bird Sounds* (OpenGameArt, CC0) via trailpaw (see above) |
+
+## Player combat / mount poses — KayKit Adventurers (already above)
+Extra clips kept from the same character files: `Hit_A`, `Death_A`, `Dodge_Forward`, `Spellcast_Shoot`,
+`Sit_Chair_Idle` (riding pose).

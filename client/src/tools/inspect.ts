@@ -17,10 +17,12 @@ const SETS: Record<string, string[]> = {
   nature: ['mountain_A', 'mountain_B_grass_trees', 'hills_A_trees', 'hills_B', 'trees_A_large', 'trees_B_medium', 'tree_single_A', 'tree_single_B', 'rock_single_E', 'rock_single_C'],
   buildings: ['building_home_A_blue', 'building_home_B_red', 'building_tavern_green', 'building_church_yellow', 'building_market_blue', 'building_well_red', 'building_windmill_green', 'building_blacksmith_yellow', 'building_bridge_A', 'building_bridge_B', 'building_watermill_blue', 'building_lumbermill_red'],
   characters: ['Knight', 'Barbarian', 'Mage', 'Rogue', 'Rogue_Hooded'],
+  summons: ['summons/yeti.glb', 'summons/demon.glb', 'summons/mushroom-king.glb', 'summons/dino.glb', 'summons/orc.glb', 'summons/alien.glb', 'summons/evolved-dragon.glb', 'mounts/horse.glb', 'characters/Knight.glb'],
+  poi: ['poi/shrine.glb', 'poi/arch_gate.glb', 'poi/crypt.glb', 'poi/pillar_decorated.glb', 'poi/wall_arched.glb', 'poi/rubble_large.glb', 'poi/tree_dead_large.glb', 'poi/gravestone.glb', 'poi/chest_gold.glb', 'poi/banner_patternA_red.glb', 'poi/floor_tile_large.glb', 'poi/stairs_wide.glb'],
 };
 const set = params.get('set') ?? 'roads';
 const models = params.get('models')?.split(',') ?? SETS[set];
-const isChar = set === 'characters';
+const isChar = set === 'characters' || set === 'summons';
 const view = params.get('view') ?? (isChar ? 'persp' : 'top');
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -57,15 +59,17 @@ if (view === 'top') {
 const loader = new GLTFLoader();
 const labels: { el: HTMLDivElement; pos: THREE.Vector3 }[] = [];
 await Promise.all(models.map(async (name, i) => {
-  const url = isChar ? `/assets/characters/${name}.glb` : `/assets/environment/hexagon/${name}.gltf`;
+  const url = name.includes('/') ? `/assets/${name}` : isChar ? `/assets/characters/${name}.glb` : `/assets/environment/hexagon/${name}.gltf`;
+  const scale = Number(params.get('scale') ?? 1);
   const gltf = await loader.loadAsync(url);
   const x = (i % cols - (cols - 1) / 2) * spacing;
   const z = (Math.floor(i / cols) - (rows - 1) / 2) * spacing;
   gltf.scene.position.set(x, 0, z);
+  gltf.scene.scale.setScalar(name.startsWith('summons/') ? 0.55 : name.startsWith('mounts/') ? 0.45 : name.startsWith('characters/') ? 0.75 : scale);
   scene.add(gltf.scene);
   if (isChar) {
     const mixer = new THREE.AnimationMixer(gltf.scene);
-    const clip = gltf.animations.find((c) => c.name === (params.get('clip') ?? 'Idle'));
+    const clip = gltf.animations.find((c) => c.name === (params.get('clip') ?? 'Idle')) ?? gltf.animations.find((c) => /Idle/.test(c.name));
     if (clip) { mixer.clipAction(clip).play(); mixer.update(0.3); }
   }
   // Edge markers: index 0..5 at the six edge midpoints of a pointy-top hex (unit flat-to-flat = 2).

@@ -30,7 +30,7 @@ if (!fs.existsSync(ADV) || !fs.existsSync(HEX)) {
 }
 
 const CHARACTERS = ['Knight', 'Barbarian', 'Mage', 'Rogue', 'Rogue_Hooded'];
-const KEEP_CLIPS = ['Idle', 'Walking_A', 'Running_A', 'Jump_Start', 'Jump_Idle', 'Jump_Land', 'Cheer', 'Sit_Floor_Down', 'Sit_Floor_Idle', 'Lie_Down', 'Lie_Idle'];
+const KEEP_CLIPS = ['Idle', 'Walking_A', 'Running_A', 'Jump_Start', 'Jump_Idle', 'Jump_Land', 'Cheer', 'Sit_Floor_Down', 'Sit_Floor_Idle', 'Lie_Down', 'Lie_Idle', 'Hit_A', 'Death_A', 'Dodge_Forward', 'Spellcast_Shoot', 'Sit_Chair_Idle'];
 
 // Environment models used by the world generator (path relative to Assets/gltf).
 const ENV = [

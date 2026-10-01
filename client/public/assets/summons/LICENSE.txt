@@ -1,0 +1,9 @@
+Ultimate Monsters
+Created by Quaternius
+https://quaternius.com/packs/ultimatemonsters.html
+
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The colour-enhanced texture variants and Bomberfan integration are part of
+this project. No attribution is required by CC0; this notice records provenance.
