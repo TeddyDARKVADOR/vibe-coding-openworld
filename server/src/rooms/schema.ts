@@ -12,8 +12,12 @@ export const PlayerState = schema({
   yaw: t.float32(),
   /** Anim enum (idle / walk / run / jump). */
   anim: t.uint8(),
-  /** Index into CHARACTERS. */
+  /** Index into CHARACTERS (chosen by the player). */
   character: t.uint8(),
+  /** Display name chosen by the player (validated by the server). */
+  name: t.string(),
+  /** Current Emote (0 = none). */
+  emote: t.uint8().default(0),
   /** Vertical speed and last processed input: only used by the owning client for reconciliation. */
   vy: t.float64(),
   ack: t.uint32(),

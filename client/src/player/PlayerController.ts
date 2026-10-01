@@ -10,7 +10,7 @@
  */
 import * as THREE from 'three';
 import {
-  Anim, INPUT_AXIS_MAX, createCharacterState, stepCharacter,
+  Anim, Emote, INPUT_AXIS_MAX, createCharacterState, stepCharacter,
   type CharacterState, type PhysicsWorld, type PlayerInput,
 } from '@openworld/shared';
 import type { CharacterModel } from './CharacterModel.ts';
@@ -33,6 +33,8 @@ export class PlayerController {
   /** Visual-only offset that absorbs server corrections smoothly. */
   private correction = new THREE.Vector3();
   private visualYaw = 0;
+  /** Local emote (also sent to the server); cancelled when moving. */
+  emote: Emote = Emote.None;
   corrections = 0;
   lastCorrection = 0;
 
@@ -110,7 +112,8 @@ export class PlayerController {
     this.model.root.position.copy(out);
     this.visualYaw = lerpAngle(this.visualYaw, this.state.yaw, Math.min(1, dt * 14));
     this.model.root.rotation.y = this.visualYaw;
-    this.model.play(this.state.anim);
+    if (this.state.anim !== Anim.Idle) this.emote = Emote.None;
+    this.model.setPose(this.state.anim, this.emote);
     this.model.update(dt);
   }
 

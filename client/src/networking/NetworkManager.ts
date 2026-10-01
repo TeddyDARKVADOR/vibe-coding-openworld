@@ -3,12 +3,13 @@
  * plain callbacks and plain objects.
  */
 import { Client, type Room } from '@colyseus/sdk';
-import { DEFAULT_SERVER_PORT, MsgType, ROOM_NAME, encodeInput, type PlayerInput } from '@openworld/shared';
+import { DEFAULT_SERVER_PORT, Emote, MsgType, ROOM_NAME, encodeInput, type ChatMessage, type JoinOptions, type PlayerInput } from '@openworld/shared';
 
 export interface NetPlayer {
   id: string;
   x: number; y: number; z: number;
   yaw: number; anim: number; character: number; vy: number; ack: number; grounded: boolean;
+  name: string; emote: Emote;
 }
 
 export interface NetworkEvents {
@@ -16,6 +17,7 @@ export interface NetworkEvents {
   onSnapshot(players: NetPlayer[], t: number): void;
   onPlayerLeft(id: string): void;
   onConnectionChange(state: 'connected' | 'reconnecting' | 'lost'): void;
+  onChat(msg: ChatMessage): void;
 }
 
 export function serverUrl(): string {
@@ -35,9 +37,9 @@ export class NetworkManager {
 
   constructor(private events: NetworkEvents) {}
 
-  async connect(): Promise<void> {
+  async connect(options: JoinOptions): Promise<void> {
     const client = new Client(serverUrl());
-    const room = await client.joinOrCreate(ROOM_NAME);
+    const room = await client.joinOrCreate(ROOM_NAME, options);
     this.room = room;
     this.sessionId = room.sessionId;
 
@@ -47,12 +49,13 @@ export class NetworkManager {
       const seen = new Set<string>();
       state.players.forEach((p: any, id: string) => {
         seen.add(id);
-        list.push({ id, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, character: p.character, vy: p.vy, ack: p.ack, grounded: p.grounded });
+        list.push({ id, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, character: p.character, vy: p.vy, ack: p.ack, grounded: p.grounded, name: p.name ?? '', emote: p.emote ?? Emote.None });
       });
       for (const id of this.known) if (!seen.has(id)) this.events.onPlayerLeft(id);
       this.known = seen;
       this.events.onSnapshot(list, t);
     });
+    room.onMessage(MsgType.Chat, (m: ChatMessage) => this.events.onChat(m));
     room.onDrop(() => this.events.onConnectionChange('reconnecting'));
     room.onReconnect(() => this.events.onConnectionChange('connected'));
     room.onLeave(() => this.events.onConnectionChange('lost'));
@@ -69,5 +72,13 @@ export class NetworkManager {
 
   sendInput(input: PlayerInput): void {
     this.room?.send(MsgType.Input, encodeInput(input));
+  }
+
+  sendChat(text: string): void {
+    this.room?.send(MsgType.Chat, text);
+  }
+
+  sendEmote(emote: Emote): void {
+    this.room?.send(MsgType.Emote, emote);
   }
 }

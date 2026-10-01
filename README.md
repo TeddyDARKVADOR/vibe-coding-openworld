@@ -10,6 +10,8 @@ sur laquelle d'autres fonctionnalités pourront être ajoutées.
 - **un seul monde** partagé par tous les joueurs, mêmes coordonnées globales
 - monde déterministe généré par chunks et streamé autour du joueur → pas de limite pratique
 - serveur **autoritaire** (Colyseus + Rapier) ; le client ne fait que prédire
+- social : pseudo et choix du personnage à l'entrée, pseudos au-dessus des têtes, chat avec
+  bulles, emotes animées, mini-carte avec les autres joueurs (même très loin), liste des joueurs
 
 ![Vue au spawn : le village du premier carrefour est visible immédiatement](docs/screenshot.png)
 
@@ -17,6 +19,7 @@ sur laquelle d'autres fonctionnalités pourront être ajoutées.
 |---|---|
 | ![village](docs/village.png) | ![lac](docs/lake.png) |
 | ![rivière, route et pont](docs/bridge.png) | ![à x=12 500, z=−8 300](docs/far-12500_-8300.png) |
+| ![écran d'entrée](docs/entry.png) | ![emote assis + mini-carte](docs/minimap-emote.png) |
 
 *Captures faites en Chromium headless (rendu logiciel) par `scripts/tour-screenshots.mjs`.*
 
@@ -57,7 +60,15 @@ client se connecte automatiquement au serveur sur la même machine, port 2567).
 | Espace | sauter |
 | clic puis souris (ou glisser) | tourner la caméra |
 | molette | zoom |
+| Entrée | ouvrir le chat / envoyer (Échap pour annuler) |
+| 1 / 2 / 3 | emote : applaudir / s'asseoir / s'allonger (même touche = arrêter, bouger = arrêter) |
+| M | afficher / masquer la mini-carte |
+| Tab (maintenu) | liste des joueurs avec distance et direction |
 | F3 | panneau de debug discret (ou `?debug` dans l'URL) |
+
+À l'arrivée, un écran demande un pseudo et le personnage (aperçu 3D) ; le choix est
+mémorisé dans le navigateur. La mini-carte tourne avec la caméra (le haut = où tu regardes) ;
+les joueurs hors de portée apparaissent en flèches sur le bord avec leur distance.
 
 ### Paramètres d'URL
 
@@ -66,6 +77,7 @@ client se connecte automatiquement au serveur sur la même machine, port 2567).
 | `?debug` | affiche le panneau de debug dès le départ (sinon F3) |
 | `?radius=2` | distance de vue en chunks de 128 m (1 à 5, défaut 3) — baisser sur une machine modeste |
 | `?server=ws://hote:2567` | serveur de jeu à utiliser (par défaut : même machine, port 2567) |
+| `?name=Teddy&character=2` | entre directement avec ce pseudo / personnage (0–4), sans l'écran d'accueil |
 
 ### Production (un seul processus)
 
@@ -125,8 +137,9 @@ server/
 client/
   src/main.ts            démarrage + erreurs
   src/game/Game.ts       boucle, scène, branchements ; ui.ts = statut/erreurs/debug
+  src/game/EntryScreen.ts  écran pseudo + personnage ; social.ts = étiquettes, chat, liste des joueurs
   src/assets/            chargement + cache des glTF KayKit
-  src/world/             WorldManager (streaming des chunks), EnvironmentRenderer (instancing)
+  src/world/             WorldManager (streaming des chunks), EnvironmentRenderer (instancing), Minimap
   src/player/            PlayerController (local), RemotePlayer, CharacterModel, Input
   src/camera/            caméra 3ᵉ personne avec anti-traversée des murs
   src/networking/        NetworkManager : seul fichier qui parle à Colyseus
@@ -208,4 +221,7 @@ l'environnement de build ; ils ne sont pas nécessaires au prototype (voir ASSET
 - Les joueurs ne se bloquent pas entre eux (fantômes), volontairement.
 - Les rivières et lacs sont infranchissables à la nage ; on traverse par les ponts des routes.
 - Pas de filtrage par zone d'intérêt (inutile pour 10–20 joueurs).
-- Toutes les fonctionnalités de jeu (noms, chat, amis…) sont hors périmètre de cette phase.
+- Chat sans modération ni historique (simple diffusion, anti-spam ~1,5 message/s, 140 caractères).
+- Rien n'est sauvegardé côté serveur : à la reconnexion on réapparaît au spawn.
+- Pistes suivantes : sauvegarde de la position, liste d'amis / « rejoindre un ami »,
+  véhicules ou monture, lieux spéciaux, personnalisation plus poussée.

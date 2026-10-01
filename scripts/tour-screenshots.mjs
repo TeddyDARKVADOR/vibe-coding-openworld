@@ -24,7 +24,7 @@ for (const v of VIEWS.filter((v) => !only.length || only.includes(v.name))) {
   try {
   const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
   page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-  await page.goto('http://localhost:5173/?server=ws://localhost:2601');
+  await page.goto('http://localhost:5173/?name=Photo&server=ws://localhost:2601');
   await page.waitForFunction(() => window.__game?.debugState, null, { timeout: 180000 });
   const s = await page.evaluate(([lx, lz, pitch, dist]) => {
     const g = window.__game, st = g.debugState;

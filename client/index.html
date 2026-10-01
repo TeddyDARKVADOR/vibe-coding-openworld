@@ -4,14 +4,37 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Open World</title>
-    
   </head>
   <body>
     <div id="app"></div>
-    <div id="loading" class="loading"><div class="loading-box"><div class="loading-title">Chargement du monde…</div><div class="bar"><div id="loading-bar"></div></div><div id="loading-text"></div></div></div>
+    <div id="labels"></div>
+
+    <div id="entry" class="entry hidden">
+      <form id="entry-form" class="entry-box" autocomplete="off">
+        <div class="entry-title">Open World</div>
+        <canvas id="entry-preview" width="260" height="260"></canvas>
+        <div class="entry-chars">
+          <button type="button" class="char-prev" aria-label="Personnage précédent">‹</button>
+          <span id="entry-char-name"></span>
+          <button type="button" class="char-next" aria-label="Personnage suivant">›</button>
+        </div>
+        <input id="entry-name" maxlength="16" placeholder="Ton pseudo" required />
+        <button id="entry-go" type="submit">Entrer dans le monde</button>
+      </form>
+    </div>
+
+    <div id="loading" class="loading hidden"><div class="loading-box"><div class="loading-title">Chargement du monde…</div><div class="bar"><div id="loading-bar"></div></div><div id="loading-text"></div></div></div>
     <div id="status" class="status hidden"></div>
-    <div id="hint" class="hint hidden">Clic pour tourner la caméra · ZQSD/WASD pour marcher · Maj pour courir · Espace pour sauter · F3 debug</div>
+    <div id="hint" class="hint hidden">Clic : caméra · ZQSD/WASD : marcher · Maj : courir · Espace : sauter · Entrée : chat · 1 2 3 : emotes · M : carte · Tab : joueurs · F3 : debug</div>
     <pre id="debug" class="debug hidden"></pre>
+
+    <div id="chat" class="chat hidden">
+      <div id="chat-log" class="chat-log"></div>
+      <input id="chat-input" class="chat-input hidden" maxlength="140" placeholder="Message… (Entrée pour envoyer, Échap pour annuler)" autocomplete="off" />
+    </div>
+    <canvas id="minimap" class="minimap hidden" width="200" height="200"></canvas>
+    <div id="players" class="players hidden"></div>
+
     <div id="error" class="error hidden"><div class="error-box"><div class="error-title" id="error-title"></div><div id="error-text"></div><button id="error-retry">Réessayer</button></div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

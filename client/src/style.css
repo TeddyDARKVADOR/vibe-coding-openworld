@@ -18,3 +18,38 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #9fd3f0; fon
 .error-title { font-weight: 600; font-size: 16px; margin-bottom: 8px; }
 #error-text { font-size: 14px; line-height: 1.45; white-space: pre-wrap; }
 #error-retry { margin-top: 14px; padding: 7px 16px; border: 0; border-radius: 6px; background: #3a7bd5; color: #fff; font-size: 14px; cursor: pointer; }
+
+/* ---- entry screen */
+.entry { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(#7cc4ec, #c9ecc0); }
+.entry-box { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 26px; background: rgba(255,255,255,.75); border-radius: 14px; box-shadow: 0 10px 40px rgba(20,60,90,.2); }
+.entry-title { font-size: 26px; font-weight: 700; color: #234; letter-spacing: .5px; }
+#entry-preview { width: 260px; height: 260px; border-radius: 10px; background: rgba(255,255,255,.4); }
+.entry-chars { display: flex; align-items: center; gap: 12px; color: #234; font-size: 16px; min-width: 240px; justify-content: space-between; }
+.entry-chars button { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #3a7bd5; color: #fff; font-size: 22px; cursor: pointer; }
+#entry-name { width: 240px; padding: 9px 12px; border: 1px solid #b8c8d8; border-radius: 8px; font-size: 15px; }
+#entry-go { width: 266px; padding: 10px; border: 0; border-radius: 8px; background: #2f9e5a; color: #fff; font-size: 16px; cursor: pointer; }
+
+/* ---- labels above characters */
+#labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+.tag { display: flex; flex-direction: column; align-items: center; gap: 3px; transform: translateY(-50%); pointer-events: none; }
+.tag-name { padding: 1px 7px; border-radius: 999px; background: rgba(20, 30, 40, .5); color: #fff; font-size: 12px; white-space: nowrap; }
+.tag-bubble { max-width: 220px; padding: 5px 9px; border-radius: 10px; background: #fff; color: #223; font-size: 13px; line-height: 1.3; box-shadow: 0 2px 8px rgba(0,0,0,.2); word-wrap: break-word; text-align: center; }
+
+/* ---- chat */
+.chat { position: fixed; left: 12px; bottom: 64px; width: min(380px, 80vw); display: flex; flex-direction: column; gap: 6px; }
+.chat-log { display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+.chat-line { color: #fff; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,.7); transition: opacity 1s; }
+.chat-line b { color: #ffe08a; }
+.chat-line.fade { opacity: 0; }
+.chat.open .chat-line.fade { opacity: 1; }
+.chat-input { padding: 7px 10px; border: 0; border-radius: 6px; background: rgba(255,255,255,.92); font-size: 14px; }
+
+/* ---- minimap & player list */
+.minimap { position: fixed; top: 12px; right: 12px; width: 200px; height: 200px; border-radius: 50%; box-shadow: 0 2px 12px rgba(0,0,0,.3); border: 3px solid rgba(255,255,255,.8); }
+.players { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 300px; padding: 12px 16px; border-radius: 10px; background: rgba(20, 30, 40, .78); color: #fff; font-size: 14px; }
+.players h3 { margin: 0 0 8px; font-size: 15px; }
+.players .row { display: flex; justify-content: space-between; gap: 20px; padding: 2px 0; }
+.players .me { color: #ffe08a; }
+@media (max-width: 700px), (max-height: 500px) {
+  .minimap { width: 130px; height: 130px; }
+}

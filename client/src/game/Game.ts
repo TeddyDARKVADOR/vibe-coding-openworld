@@ -4,7 +4,8 @@
  */
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { CHARACTERS, CHUNK_SIZE, RENDER_LOAD_RADIUS, TICK_DT, chunkCoord, chunkKey } from '@openworld/shared';
+import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import { Anim, CHARACTERS, CHUNK_SIZE, Emote, RENDER_LOAD_RADIUS, TICK_DT, chunkCoord, chunkKey, type ChatMessage } from '@openworld/shared';
 import { AssetLibrary } from '../assets/AssetLibrary.ts';
 import { ThirdPersonCamera } from '../camera/ThirdPersonCamera.ts';
 import { NetworkManager, serverUrl, type NetPlayer } from '../networking/NetworkManager.ts';
@@ -13,6 +14,9 @@ import { Input } from '../player/Input.ts';
 import { PlayerController } from '../player/PlayerController.ts';
 import { RemotePlayer } from '../player/RemotePlayer.ts';
 import { WorldManager } from '../world/WorldManager.ts';
+import { Minimap } from '../world/Minimap.ts';
+import { ChatBox, NameTag, PlayerList, compass } from './social.ts';
+import type { PlayerProfile } from './EntryScreen.ts';
 import { ui } from './ui.ts';
 
 const SKY = 0xa8d8f0;
@@ -32,7 +36,16 @@ export class Game {
   private camera = new THREE.PerspectiveCamera(60, 1, 0.1, FOG_FAR + 80);
   private sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
   private orbit = new ThirdPersonCamera(this.camera);
-  private assets = new AssetLibrary();
+  readonly assets = new AssetLibrary();
+  private labels!: CSS2DRenderer;
+  private chat!: ChatBox;
+  private minimap = new Minimap();
+  private playerList = new PlayerList();
+  private tags = new Map<string, NameTag>();
+  private myTag: NameTag | null = null;
+  /** Players already announced in the chat ("X a rejoint le monde"). */
+  private announced = new Map<string, string>();
+  private hudTime = 0;
   private input!: Input;
   private net: NetworkManager;
   private world!: WorldManager;
@@ -58,20 +71,24 @@ export class Game {
       onSnapshot: (players, t) => this.onSnapshot(players, t),
       onPlayerLeft: (id) => this.removeRemote(id),
       onConnectionChange: (s) => this.onConnectionChange(s),
+      onChat: (m) => this.onChat(m),
     });
   }
 
-  async start(): Promise<void> {
+  async start(profile: PlayerProfile): Promise<void> {
     this.createRenderer();
     this.input = new Input(this.renderer.domElement);
     this.input.onToggleDebug = () => { this.debugVisible = !this.debugVisible; if (!this.debugVisible) ui.debug(null); };
+    this.input.onEmote = (n) => this.emote(n as Emote);
+    this.input.onToggleMap = () => { if (!this.chat?.isOpen) this.minimap.visible = !this.minimap.visible; };
+    this.input.onPlayerList = (show) => { this.playerList.visible = show; if (show) this.updateHud(true); };
 
     ui.loading(0.02, 'Initialisation de la physique…');
     await RAPIER.init();
 
     ui.loading(0.05, 'Connexion au serveur…');
     try {
-      await this.net.connect();
+      await this.net.connect(profile);
     } catch (e) {
       throw new UserFacingError('Serveur indisponible',
         `Impossible de rejoindre le monde sur ${serverUrl()}.\nLe serveur de jeu est-il lancé ? (npm run dev)\n\n${e instanceof Error ? e.message : String(e)}`);
@@ -94,7 +111,15 @@ export class Game {
 
     this.orbit.yaw = me.yaw + Math.PI; // start behind the character
     this.player = new PlayerController((x, z) => this.world.physicsAt(x, z), model, this.input, this.orbit, (i) => this.net.sendInput(i), me);
+    this.myTag = new NameTag(me.name, false); // own name hidden, only chat bubbles
+    model.head.add(this.myTag.object);
+    this.chat = new ChatBox((text) => this.net.sendChat(text));
+    const openChat = this.chat.open.bind(this.chat);
+    this.chat.open = () => { this.input.clear(); openChat(); };
+    for (const p of this.lastSnapshot) this.announced.set(p.id, p.name); // already here: no "joined" message
     this.onSnapshot(this.lastSnapshot, performance.now());
+    this.chat.add('', `Bienvenue ${me.name} ! ${this.lastSnapshot.length - 1} autre(s) joueur(s) dans le monde.`, true);
+    this.minimap.visible = true;
 
     ui.hideLoading();
     ui.status('Connecté', true);
@@ -120,6 +145,7 @@ export class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
     this.container.appendChild(this.renderer.domElement);
+    this.labels = new CSS2DRenderer({ element: document.getElementById('labels')! });
     this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
       this.fail('Contexte WebGL perdu', 'Le navigateur a interrompu le rendu 3D. Recharge la page.');
@@ -138,6 +164,7 @@ export class Game {
 
     const resize = () => {
       this.renderer.setSize(innerWidth, innerHeight);
+      this.labels.setSize(innerWidth, innerHeight);
       this.camera.aspect = innerWidth / innerHeight;
       this.camera.updateProjectionMatrix();
     };
@@ -168,10 +195,29 @@ export class Game {
         this.player.reconcile(p);
         continue;
       }
+      if (!this.announced.has(p.id)) {
+        this.announced.set(p.id, p.name);
+        this.chat.add('', `${p.name} a rejoint le monde.`, true);
+      }
       const remote = this.remotes.get(p.id);
-      if (remote) remote.push(t, p);
-      else this.addRemote(p, t);
+      if (remote) {
+        remote.push(t, p);
+        if (remote.name !== p.name) { remote.name = p.name; this.tags.get(p.id)?.setName(p.name); }
+      } else this.addRemote(p, t);
     }
+  }
+
+  private onChat(m: ChatMessage): void {
+    this.chat.add(m.name, m.text);
+    if (m.id === this.net.sessionId) this.myTag?.say(m.text);
+    else this.tags.get(m.id)?.say(m.text);
+  }
+
+  private emote(e: Emote): void {
+    const p = this.player;
+    if (!p || this.chat.isOpen || p.state.anim !== Anim.Idle) return;
+    p.emote = p.emote === e ? Emote.None : e; // same key again = stop
+    this.net.sendEmote(p.emote);
   }
 
   private addRemote(p: NetPlayer, t: number): void {
@@ -181,15 +227,23 @@ export class Game {
       (model) => {
         if (!this.loadingRemotes.delete(p.id)) { model.dispose(); return; } // left meanwhile
         const r = new RemotePlayer(p.id, model);
+        r.name = p.name;
         r.push(t, p);
         this.remotes.set(p.id, r);
         this.scene.add(model.root);
+        const tag = new NameTag(p.name);
+        model.head.add(tag.object);
+        this.tags.set(p.id, tag);
       },
       (e) => this.fail('Ressource introuvable', e instanceof Error ? e.message : String(e)),
     );
   }
 
   private removeRemote(id: string): void {
+    const name = this.announced.get(id);
+    if (name !== undefined) { this.announced.delete(id); this.chat?.add('', `${name} a quitté le monde.`, true); }
+    this.tags.get(id)?.dispose();
+    this.tags.delete(id);
     this.loadingRemotes.delete(id);
     this.remotes.get(id)?.dispose();
     this.remotes.delete(id);
@@ -246,7 +300,9 @@ export class Game {
 
     for (const r of this.remotes.values()) {
       r.update(now, dt, this.originX, this.originZ);
-      r.model.root.visible = Math.hypot(r.world.x - pos.x, r.world.z - pos.z) < REMOTE_VISIBLE_DISTANCE;
+      const d = Math.hypot(r.world.x - pos.x, r.world.z - pos.z);
+      r.model.root.visible = d < REMOTE_VISIBLE_DISTANCE;
+      this.tags.get(r.id)?.updateDistance(d);
     }
 
     // Sun (and its shadow box) follows the player.
@@ -254,10 +310,34 @@ export class Game {
     this.sun.target.position.copy(this.renderPos);
 
     this.renderer.render(this.scene, this.camera);
+    this.labels.render(this.scene, this.camera);
+    if (now - this.hudTime > 100) { this.hudTime = now; this.updateHud(false); }
 
     this.frames++;
     if (now - this.fpsTime > 1000) { this.fps = (this.frames * 1000) / (now - this.fpsTime); this.frames = 0; this.fpsTime = now; }
     if (this.debugVisible && now - this.debugTime > 200) { this.debugTime = now; this.updateDebug(pos); }
+  }
+
+  /** Minimap (10 Hz) and player list (while Tab is held). */
+  private updateHud(force: boolean): void {
+    const p = this.player;
+    if (!p) return;
+    const me = p.state;
+    const others = [...this.remotes.values()];
+    if (this.minimap.visible) {
+      this.minimap.draw(this.world, me.x, me.z, this.orbit.yaw, p.model.root.rotation.y, [
+        ...others.map((r) => ({ name: r.name, x: r.world.x, z: r.world.z, me: false })),
+      ]);
+    }
+    if (this.playerList.visible && (force || Math.floor(performance.now() / 500) !== Math.floor((performance.now() - 100) / 500))) {
+      const myName = this.announced.get(this.net.sessionId) ?? this.lastSnapshot.find((s) => s.id === this.net.sessionId)?.name ?? '';
+      this.playerList.render([
+        { name: myName, me: true, distance: 0, direction: '' },
+        ...this.lastSnapshot.filter((s) => s.id !== this.net.sessionId).map((s) => ({
+          name: s.name, me: false, distance: Math.hypot(s.x - me.x, s.z - me.z), direction: compass(s.x - me.x, s.z - me.z),
+        })),
+      ]);
+    }
   }
 
   private updateDebug(pos: { x: number; y: number; z: number }): void {
@@ -280,8 +360,9 @@ export class Game {
     return {
       sessionId: this.net.sessionId, connection: this.connection, corrections: p.corrections, lastCorrection: p.lastCorrection,
       x: p.state.x, y: p.state.y, z: p.state.z, anim: p.state.anim,
-      players: this.lastSnapshot.map((s) => ({ id: s.id, x: s.x, y: s.y, z: s.z, character: s.character })),
-      remotes: [...this.remotes.values()].map((r) => ({ id: r.id, ...r.world, visible: r.model.root.visible })),
+      emote: p.emote,
+      players: this.lastSnapshot.map((s) => ({ id: s.id, name: s.name, x: s.x, y: s.y, z: s.z, character: s.character, emote: s.emote })),
+      remotes: [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, ...r.world, visible: r.model.root.visible })),
       world: this.world.stats, origin: [this.originX, this.originZ], fps: this.fps,
       camera: { yaw: this.orbit.yaw, pitch: this.orbit.pitch },
     };

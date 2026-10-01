@@ -18,7 +18,7 @@ const waitError = async (page, ms = 120000) => { const t = Date.now(); while (Da
 {
   const b = await chromium.launch({ args: GL });
   const page = await b.newPage();
-  await page.goto(`${BASE}?server=ws://localhost:2999`);
+  await page.goto(`${BASE}?name=E&server=ws://localhost:2999`);
   const e = await waitError(page);
   check('server unavailable → message', e?.startsWith('Serveur indisponible'), JSON.stringify(e?.slice(0, 90)));
   await page.screenshot({ path: `${out}/error-server.png` });
@@ -28,7 +28,7 @@ const waitError = async (page, ms = 120000) => { const t = Date.now(); while (Da
 {
   const b = await chromium.launch({ args: ['--disable-webgl', '--disable-3d-apis'] });
   const page = await b.newPage();
-  await page.goto(BASE);
+  await page.goto(`${BASE}?name=E`);
   const e = await waitError(page, 30000);
   check('WebGL unavailable → message', e?.startsWith('WebGL indisponible'), JSON.stringify(e?.slice(0, 60)));
   await b.close();
@@ -38,7 +38,7 @@ const waitError = async (page, ms = 120000) => { const t = Date.now(); while (Da
   const b = await chromium.launch({ args: GL });
   const page = await b.newPage();
   await page.route('**/assets/characters/*.glb', (r) => r.fulfill({ status: 404, body: 'not found' }));
-  await page.goto(`${BASE}?radius=1`);
+  await page.goto(`${BASE}?name=E&radius=1`);
   const e = await waitError(page);
   check('missing GLB → message', e?.startsWith('Ressource introuvable') && /characters\/.*\.glb/.test(e), JSON.stringify(e?.slice(0, 120)));
   await b.close();
@@ -49,7 +49,7 @@ const waitError = async (page, ms = 120000) => { const t = Date.now(); while (Da
   for (let i = 0; i < 60 && !(await fetch('http://localhost:2601/health').then(() => true, () => false)); i++) await sleep(500);
   const b = await chromium.launch({ args: GL });
   const page = await b.newPage({ viewport: { width: 400, height: 260 } });
-  await page.goto(`${BASE}?server=ws://localhost:2601&radius=1`);
+  await page.goto(`${BASE}?name=E&server=ws://localhost:2601&radius=1`);
   await page.waitForFunction(() => window.__game?.debugState, null, { timeout: 180000 });
   await sleep(6000); // the SDK only auto-reconnects rooms that have been up for 5 s
   server.kill('SIGKILL'); // abrupt: like a network cut (a clean shutdown closes with a "server stopped" code)

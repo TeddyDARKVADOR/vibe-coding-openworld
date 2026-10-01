@@ -9,7 +9,52 @@ export const ROOM_NAME = 'world';
 export const DEFAULT_SERVER_PORT = 2567;
 
 export enum MsgType {
+  /** client → server: InputPacket */
   Input = 'i',
+  /** client → server: string ; server → clients: ChatMessage */
+  Chat = 'c',
+  /** client → server: Emote */
+  Emote = 'e',
+}
+
+/** Emotes, played with KayKit animations. Cancelled as soon as the character moves. */
+export enum Emote {
+  None = 0,
+  Cheer = 1,
+  Sit = 2,
+  Lie = 3,
+}
+export const EMOTE_COUNT = 4;
+
+/** Options sent with joinOrCreate. Everything is validated by the server. */
+export interface JoinOptions {
+  name?: string;
+  character?: number;
+}
+
+export interface ChatMessage {
+  /** Session id of the author. */
+  id: string;
+  name: string;
+  text: string;
+}
+
+export const NAME_MAX_LENGTH = 16;
+export const CHAT_MAX_LENGTH = 140;
+
+/** Removes control characters, collapses spaces, trims and truncates. */
+function cleanText(raw: unknown, max: number): string {
+  if (typeof raw !== 'string') return '';
+  // eslint-disable-next-line no-control-regex
+  return raw.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+export function sanitizeName(raw: unknown): string {
+  return cleanText(raw, NAME_MAX_LENGTH);
+}
+
+export function sanitizeChat(raw: unknown): string {
+  return cleanText(raw, CHAT_MAX_LENGTH);
 }
 
 export enum Anim {

@@ -3,6 +3,7 @@ const $ = (id: string) => document.getElementById(id)!;
 
 export const ui = {
   loading(progress: number, text: string) {
+    $('loading').classList.remove('hidden');
     $('loading-bar').style.width = `${Math.round(progress * 100)}%`;
     $('loading-text').textContent = text;
   },

@@ -5,7 +5,7 @@ const out = process.argv[2] ?? '.';
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await (await browser.newContext({ viewport: { width: 400, height: 260 } })).newPage();
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-await page.goto(process.env.URL ?? 'http://localhost:5173/?debug&radius=2');
+await page.goto(process.env.URL ?? 'http://localhost:5173/?debug&radius=2&name=Collision');
 await page.waitForFunction(() => window.__game?.debugState, null, { timeout: 120000 });
 const state = () => page.evaluate(() => window.__game.debugState);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

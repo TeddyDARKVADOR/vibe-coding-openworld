@@ -3,29 +3,35 @@
  * its skeleton and animations. Physics never depends on it (the capsule does).
  */
 import * as THREE from 'three';
-import { Anim, CHARACTER_SCALE, CHARACTERS, RUN_SPEED, WALK_SPEED } from '@openworld/shared';
+import { Anim, CHARACTER_SCALE, CHARACTERS, Emote, RUN_SPEED, WALK_SPEED } from '@openworld/shared';
 import { AssetLibrary, type CharacterTemplate } from '../assets/AssetLibrary.ts';
 
-const CLIP: Record<Anim, string> = {
-  [Anim.Idle]: 'Idle',
-  [Anim.Walk]: 'Walking_A',
-  [Anim.Run]: 'Running_A',
-  [Anim.Jump]: 'Jump_Idle',
+/** What the character is doing visually: a movement anim, or an emote while standing still. */
+type Pose = { clip: string; then?: string; timeScale: number };
+
+const MOVE_POSES: Record<Anim, Pose> = {
+  [Anim.Idle]: { clip: 'Idle', timeScale: 1 },
+  // Playback speed so feet roughly match ground speed.
+  [Anim.Walk]: { clip: 'Walking_A', timeScale: WALK_SPEED / 2.6 },
+  [Anim.Run]: { clip: 'Running_A', timeScale: RUN_SPEED / 6.2 },
+  [Anim.Jump]: { clip: 'Jump_Idle', timeScale: 1 },
 };
-/** Playback speed so feet roughly match ground speed. */
-const TIME_SCALE: Record<Anim, number> = {
-  [Anim.Idle]: 1,
-  [Anim.Walk]: WALK_SPEED / 2.6,
-  [Anim.Run]: RUN_SPEED / 6.2,
-  [Anim.Jump]: 1,
+
+const EMOTE_POSES: Record<Exclude<Emote, Emote.None>, Pose> = {
+  [Emote.Cheer]: { clip: 'Cheer', timeScale: 1 },
+  [Emote.Sit]: { clip: 'Sit_Floor_Down', then: 'Sit_Floor_Idle', timeScale: 1 },
+  [Emote.Lie]: { clip: 'Lie_Down', then: 'Lie_Idle', timeScale: 1 },
 };
 
 export class CharacterModel {
   /** Root placed at the character's feet; rotation.y = facing. */
   readonly root = new THREE.Group();
+  /** Point above the head where name labels / chat bubbles are attached. */
+  readonly head = new THREE.Object3D();
   private mixer: THREE.AnimationMixer;
-  private actions = new Map<Anim, THREE.AnimationAction>();
-  private current: Anim | null = null;
+  private clips = new Map<string, THREE.AnimationClip>();
+  private currentPose: Pose | null = null;
+  private currentAction: THREE.AnimationAction | null = null;
 
   constructor(template: CharacterTemplate, readonly characterIndex: number) {
     const model = AssetLibrary.cloneCharacter(template);
@@ -41,12 +47,16 @@ export class CharacterModel {
       }
     });
     this.root.add(model);
+    this.head.position.y = 2.25;
+    this.root.add(this.head);
     this.mixer = new THREE.AnimationMixer(model);
-    for (const anim of [Anim.Idle, Anim.Walk, Anim.Run, Anim.Jump]) {
-      const clip = template.clips.find((c) => c.name === CLIP[anim]);
-      if (clip) this.actions.set(anim, this.mixer.clipAction(clip));
-    }
-    this.play(Anim.Idle, 0);
+    for (const c of template.clips) this.clips.set(c.name, c);
+    // Chain "sit down" → "sitting" etc.
+    this.mixer.addEventListener('finished', (e) => {
+      const pose = this.currentPose;
+      if (pose?.then && e.action === this.currentAction) this.fadeTo(pose.then, pose.timeScale, 0.15, true);
+    });
+    this.setPose(Anim.Idle, Emote.None, 0);
   }
 
   static async create(assets: AssetLibrary, characterIndex: number): Promise<CharacterModel> {
@@ -54,15 +64,28 @@ export class CharacterModel {
     return new CharacterModel(await assets.loadCharacter(name), characterIndex);
   }
 
-  play(anim: Anim, fade = 0.2): void {
-    if (anim === this.current) return;
-    const next = this.actions.get(anim);
-    if (!next) return;
-    const prev = this.current !== null ? this.actions.get(this.current) : undefined;
-    next.reset().setEffectiveTimeScale(TIME_SCALE[anim]).setEffectiveWeight(1).play();
-    if (prev && fade > 0) prev.crossFadeTo(next, fade, false);
-    else prev?.stop();
-    this.current = anim;
+  /** Plays the movement animation, or the emote when standing still. */
+  setPose(anim: Anim, emote: Emote, fade = 0.2): void {
+    const pose = (anim === Anim.Idle && emote ? EMOTE_POSES[emote as Exclude<Emote, Emote.None>] : undefined) ?? MOVE_POSES[anim] ?? MOVE_POSES[Anim.Idle];
+    if (pose === this.currentPose) return;
+    this.currentPose = pose;
+    this.fadeTo(pose.clip, pose.timeScale, fade, !pose.then);
+  }
+
+  private fadeTo(clipName: string, timeScale: number, fade: number, loop: boolean): void {
+    const clip = this.clips.get(clipName);
+    if (!clip) return;
+    const next = this.mixer.clipAction(clip);
+    next.reset().setEffectiveTimeScale(timeScale).setEffectiveWeight(1);
+    next.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+    next.clampWhenFinished = !loop;
+    next.play();
+    const prev = this.currentAction;
+    if (prev && prev !== next) {
+      if (fade > 0) prev.crossFadeTo(next, fade, false);
+      else prev.stop();
+    }
+    this.currentAction = next;
   }
 
   update(dt: number): void {

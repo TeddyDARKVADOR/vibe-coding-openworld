@@ -26,10 +26,11 @@ No visual geometry is generated in code.
   → `client/public/assets/characters/*.glb` (with their embedded textures).
 - **Usage:** one of the 5 free characters is chosen deterministically from each
   player's session id. Animations used: `Idle`, `Walking_A`, `Running_A`, `Jump_Idle`
-  (plus `Jump_Start`, `Jump_Land` kept for later), all already embedded in the
-  character files.
+  (plus `Jump_Start`, `Jump_Land` kept for later) and, for emotes, `Cheer`,
+  `Sit_Floor_Down`, `Sit_Floor_Idle`, `Lie_Down`, `Lie_Idle` — all already
+  embedded in the character files.
 - **Modifications:** the original GLBs contain 76 animation clips (~3.6 MB each).
-  `prepare-assets.mjs` removes the unused clips (→ ~530 KB each). Meshes,
+  `prepare-assets.mjs` removes the unused clips (→ ~800 KB each). Meshes,
   skeletons, skins, materials and textures are unchanged. At runtime the
   weapons/shields that the pack attaches to the hands are hidden (the
   prototype has no weapons); helmets, hats, capes etc. stay as designed.

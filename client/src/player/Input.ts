@@ -11,15 +11,24 @@ export class Input {
   private dragging = false;
   jumpPressed = false;
   onToggleDebug: () => void = () => {};
+  onEmote: (n: number) => void = () => {};
+  onToggleMap: () => void = () => {};
+  onPlayerList: (show: boolean) => void = () => {};
 
   constructor(element: HTMLElement) {
     addEventListener('keydown', (e) => {
       if (e.code === 'F3') { e.preventDefault(); this.onToggleDebug(); return; }
+      if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat) this.onPlayerList(true); return; }
+      if (!e.repeat && /^(Digit|Numpad)[1-3]$/.test(e.code)) this.onEmote(Number(e.code.slice(-1)));
+      if (!e.repeat && e.code === 'KeyM') this.onToggleMap();
       if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) this.jumpPressed = true; }
       if (e.code.startsWith('Arrow')) e.preventDefault();
       this.keys.add(e.code);
     });
-    addEventListener('keyup', (e) => this.keys.delete(e.code));
+    addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      if (e.code === 'Tab') this.onPlayerList(false);
+    });
     addEventListener('blur', () => this.keys.clear());
     element.addEventListener('click', () => {
       if (document.pointerLockElement !== element) element.requestPointerLock?.()?.catch?.(() => {});
@@ -34,6 +43,12 @@ export class Input {
     });
     element.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
     element.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  /** Release everything (e.g. when the chat box takes the keyboard). */
+  clear(): void {
+    this.keys.clear();
+    this.jumpPressed = false;
   }
 
   private down(...codes: string[]): boolean {

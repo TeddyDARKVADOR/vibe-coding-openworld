@@ -7,14 +7,15 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const open = async (name) => {
   const ctx = await browser.newContext({ viewport: { width: 480, height: 300 } });
   const page = await ctx.newPage();
-  page.on('pageerror', (e) => console.log(`[${name} pageerror]`, e.message));
-  page.on('console', (m) => { if (m.type() === 'error') console.log(`[${name} console]`, m.text()); });
-  await page.goto(URL);
+  page.on('pageerror', (e) => { jsErrors++; console.log(`[${name} pageerror]`, e.message); });
+  page.on('console', (m) => { if (m.type() === 'error') { jsErrors++; console.log(`[${name} console]`, m.text()); } });
+  await page.goto(`${URL}&name=Joueur${name}&character=${name.charCodeAt(0) % 5}`);
   await page.waitForFunction(() => window.__game?.debugState, null, { timeout: 120000 });
   return { name, ctx, page, state: () => page.evaluate(() => window.__game.debugState) };
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
+let jsErrors = 0;
 const check = (name, ok, info = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name} ${info}`); };
 const hold = async (p, keys, ms) => { for (const k of keys) await p.page.keyboard.down(k); await sleep(ms); for (const k of keys) await p.page.keyboard.up(k); };
 
@@ -25,6 +26,24 @@ let a = await A.state(), b = await B.state();
 check('C: A sees B', a.remotes.some((r) => r.id === b.sessionId && r.visible), JSON.stringify(a.remotes));
 check('C: B sees A', b.remotes.some((r) => r.id === a.sessionId && r.visible), JSON.stringify(b.remotes));
 check('C: same global coordinates', Math.abs(a.players.find((p) => p.id === b.sessionId).x - b.x) < 0.01, `B.x on A=${a.players.find((p) => p.id === b.sessionId).x} own=${b.x}`);
+// Names, chat and emotes.
+check('names: A sees "JoueurB"', a.remotes.find((r) => r.id === b.sessionId)?.name === 'JoueurB');
+await A.page.keyboard.press('Enter');
+await A.page.keyboard.type('Bonjour B !');
+await A.page.keyboard.press('Enter');
+await B.page.keyboard.press('Digit1'); // cheer
+await sleep(2500);
+const chatB = await B.page.evaluate(() => document.getElementById('chat-log').textContent);
+check('chat: B received A\'s message', chatB.includes('JoueurA : Bonjour B !'), JSON.stringify(chatB.slice(-80)));
+const bubbleOnB = await B.page.evaluate(() => [...document.querySelectorAll('.tag-bubble:not(.hidden)')].map((e) => e.textContent));
+check('chat: bubble above A on B\'s screen', bubbleOnB.includes('Bonjour B !'), JSON.stringify(bubbleOnB));
+a = await A.state();
+check('emote: A sees B cheering', a.players.find((p) => p.id === b.sessionId)?.emote === 1);
+await A.page.keyboard.down('Tab');
+await sleep(800);
+const list = await A.page.evaluate(() => document.getElementById('players').textContent);
+await A.page.keyboard.up('Tab');
+check('player list shows both', list.includes('JoueurA (toi)') && list.includes('JoueurB'), JSON.stringify(list));
 await A.page.screenshot({ path: `${out}/two-A-start.png` });
 await B.page.screenshot({ path: `${out}/two-B-start.png` });
 
@@ -73,6 +92,7 @@ await C.ctx.close(); // abrupt
 await sleep(24000);
 a = await A.state();
 check('E: C (connection lost) removed after the reconnection window', !a.remotes.some((r) => r.id === c.sessionId) && a.players.length === 1, `players=${a.players.length}`);
+check('no JavaScript error in any window', jsErrors === 0, `${jsErrors} error(s)`);
 await browser.close();
 const failed = results.filter((r) => !r.ok).length;
 console.log(failed ? `${failed} FAILED` : 'ALL PASSED');

@@ -62,3 +62,38 @@ test('two players share the world, see each other move, and leave cleanly', asyn
   assert.ok(!players(a).has(b.sessionId));
   await a.leave();
 });
+
+test('names, chosen characters, chat and emotes', async () => {
+  const { Emote } = await import('@openworld/shared');
+  const a = await new Client(`ws://localhost:${PORT}`).joinOrCreate(ROOM_NAME, { name: '  Alice\u0007  la   Grande ', character: 2 });
+  const b = await new Client(`ws://localhost:${PORT}`).joinOrCreate(ROOM_NAME, { name: 'x'.repeat(50), character: 99 });
+  const c = await new Client(`ws://localhost:${PORT}`).joinOrCreate(ROOM_NAME, {});
+  await sleep(300);
+  const pa = players(b).get(a.sessionId), pb = players(a).get(b.sessionId), pc = players(a).get(c.sessionId);
+  assert.equal(pa.name, 'Alice la Grande', 'name cleaned');
+  assert.equal(pa.character, 2, 'chosen character');
+  assert.equal(pb.name.length, 16, 'name truncated');
+  assert.ok(pb.character >= 0 && pb.character < 5, 'invalid character replaced');
+  assert.match(pc.name, /^Voyageur \d+$/, 'default name');
+
+  // Chat: broadcast to everybody with the author's name; spam is limited.
+  const received: any[] = [];
+  b.onMessage(MsgType.Chat, (m: any) => received.push(m));
+  a.send(MsgType.Chat, '  Salut   tout le monde ! ');
+  a.send(MsgType.Chat, 'spam immédiat');
+  a.send(MsgType.Chat, 42);
+  await sleep(300);
+  assert.deepEqual(received, [{ id: a.sessionId, name: 'Alice la Grande', text: 'Salut tout le monde !' }]);
+
+  // Emote while idle, cancelled by moving.
+  a.send(MsgType.Emote, Emote.Sit);
+  await sleep(200);
+  assert.equal(players(b).get(a.sessionId).emote, Emote.Sit);
+  for (let seq = 1; seq <= 10; seq++) { a.send(MsgType.Input, encodeInput({ seq, mx: INPUT_AXIS_MAX, mz: 0, run: false, jump: false })); await sleep(TICK_DT * 1000); }
+  await sleep(300);
+  assert.equal(players(b).get(a.sessionId).emote, Emote.None, 'moving cancels the emote');
+  a.send(MsgType.Emote, 77);
+  await sleep(150);
+  assert.equal(players(b).get(a.sessionId).emote, Emote.None, 'invalid emote ignored');
+  await Promise.all([a.leave(), b.leave(), c.leave()]);
+});

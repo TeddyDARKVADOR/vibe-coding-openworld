@@ -4,7 +4,7 @@
  * snapshots, so remote characters glide smoothly instead of teleporting at
  * each network packet.
  */
-import { Anim } from '@openworld/shared';
+import { Anim, Emote } from '@openworld/shared';
 import type { CharacterModel } from './CharacterModel.ts';
 import { lerpAngle } from './PlayerController.ts';
 
@@ -14,21 +14,23 @@ import { lerpAngle } from './PlayerController.ts';
  */
 const INTERP_DELAY = 140; // ms
 
-interface Snapshot { t: number; x: number; y: number; z: number; yaw: number; anim: Anim }
+interface Snapshot { t: number; x: number; y: number; z: number; yaw: number; anim: Anim; emote: Emote }
 
 export class RemotePlayer {
   private buffer: Snapshot[] = [];
   /** Latest interpolated world position. */
   readonly world = { x: 0, y: 0, z: 0 };
 
+  name = '';
+
   constructor(readonly id: string, readonly model: CharacterModel) {}
 
-  push(t: number, s: { x: number; y: number; z: number; yaw: number; anim: number }): void {
+  push(t: number, s: { x: number; y: number; z: number; yaw: number; anim: number; emote: Emote }): void {
     const last = this.buffer[this.buffer.length - 1];
     // Patches only arrive when something changed: after a quiet period, re-anchor the
     // previous state just before this one so movement doesn't start with a jump.
     if (last && t - last.t > 100) this.buffer.push({ ...last, t: t - 50 });
-    this.buffer.push({ t, x: s.x, y: s.y, z: s.z, yaw: s.yaw, anim: s.anim as Anim });
+    this.buffer.push({ t, x: s.x, y: s.y, z: s.z, yaw: s.yaw, anim: s.anim as Anim, emote: s.emote });
     if (this.buffer.length > 30) this.buffer.shift();
   }
 
@@ -54,7 +56,8 @@ export class RemotePlayer {
     const root = this.model.root;
     root.position.set(this.world.x - originX, this.world.y, this.world.z - originZ);
     root.rotation.y = lerpAngle(root.rotation.y, lerpAngle(a.yaw, c.yaw, t), Math.min(1, dt * 14));
-    this.model.play(t < 0.5 ? a.anim : c.anim);
+    const snap = t < 0.5 ? a : c;
+    this.model.setPose(snap.anim, snap.emote);
     this.model.update(dt);
   }
 
