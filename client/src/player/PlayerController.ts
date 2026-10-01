@@ -20,7 +20,7 @@ import type { ThirdPersonCamera } from '../camera/ThirdPersonCamera.ts';
 type Collider = ReturnType<PhysicsWorld['createCharacterCollider']>;
 
 export interface ServerPlayerState {
-  x: number; y: number; z: number; vy: number; yaw: number; anim: number; ack: number; grounded: boolean; dead: boolean;
+  x: number; y: number; z: number; vy: number; yaw: number; anim: number; ack: number; grounded: boolean; dead: boolean; mount: number;
 }
 
 export class PlayerController {
@@ -87,7 +87,7 @@ export class PlayerController {
   reconcile(s: ServerPlayerState): void {
     this.pending = this.pending.filter((i) => i.seq > s.ack);
     const before = { x: this.state.x, y: this.state.y, z: this.state.z };
-    Object.assign(this.state, { x: s.x, y: s.y, z: s.z, vy: s.vy, yaw: s.yaw, anim: s.anim as Anim, grounded: s.grounded, frozen: s.dead });
+    Object.assign(this.state, { x: s.x, y: s.y, z: s.z, vy: s.vy, yaw: s.yaw, anim: s.anim as Anim, grounded: s.grounded, frozen: s.dead, mount: s.mount });
     for (const i of this.pending) this.simulate(i);
     const ex = before.x - this.state.x, ey = before.y - this.state.y, ez = before.z - this.state.z;
     const err = Math.hypot(ex, ey, ez);

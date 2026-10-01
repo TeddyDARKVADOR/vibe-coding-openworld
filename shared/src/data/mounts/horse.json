@@ -1,0 +1,13 @@
+{
+  "id": "horse",
+  "name": "Cheval",
+  "model": "mounts/horse.glb",
+  "scale": 0.52,
+  "walkSpeed": 7,
+  "runSpeed": 14,
+  "jumpSpeed": 7,
+  "rider": { "height": 1.56, "forward": -0.05, "animation": "Sit_Chair_Idle" },
+  "animations": { "idle": "Idle", "walk": "Walk", "run": "Gallop", "jump": "Gallop_Jump" },
+  "animationSpeeds": { "walk": 1, "run": 1 },
+  "sounds": { "mount": "mount", "dismount": "dismount" }
+}

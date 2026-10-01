@@ -13,7 +13,7 @@
 import { Room, type Client } from 'colyseus';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {
-  Anim, CHARACTERS, EMOTE_COUNT, Emote, MsgType, PATCH_RATE, SPAWN_SPACING, TICK_DT, characterForSession, decodeInput,
+  Anim, CHARACTERS, EMOTE_COUNT, MOUNTS, MOUNT_COOLDOWN, Emote, MsgType, PATCH_RATE, SPAWN_SPACING, TICK_DT, characterForSession, decodeInput,
   sanitizeChat, sanitizeName, type ChatMessage, type JoinOptions, type OwnProfile,
 } from '@openworld/shared';
 import { PlayerState, SummonState, WorldState } from './schema.ts';
@@ -46,6 +46,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private spawnCenter = parseSpawn(process.env.DEBUG_SPAWN);
   /** Anti-spam: time of the last chat message per session. */
   private lastChat = new Map<string, number>();
+  /** Time of the last mount / dismount per session. */
+  private lastMount = new Map<string, number>();
   private guestCount = 0;
   /** Persistent data of each connected session (guests have none). */
   private data = new Map<string, PlayerData>();
@@ -116,12 +118,14 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       this.broadcast(MsgType.Chat, msg);
     });
 
+    this.onMessage(MsgType.Mount, (client, want: unknown) => this.setMount(client.sessionId, want));
+
     this.onMessage(MsgType.Emote, (client, payload: unknown) => {
       const ps = this.state.players.get(client.sessionId);
       const sp = this.sim.getPlayer(client.sessionId);
       if (!ps || !sp || typeof payload !== 'number' || !Number.isInteger(payload) || payload < 0 || payload >= EMOTE_COUNT) return;
       // Only while standing still (in the air the anim is Jump).
-      ps.emote = sp.state.anim === Anim.Idle ? payload : Emote.None;
+      ps.emote = sp.state.anim === Anim.Idle && !sp.state.mount ? payload : Emote.None;
     });
     this.clock.setInterval(() => this.saveAll(), SAVE_EVERY_MS);
     console.log('[world] room created');
@@ -199,6 +203,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.sim.removePlayer(client.sessionId);
     this.state.players.delete(client.sessionId);
     this.lastChat.delete(client.sessionId);
+    this.lastMount.delete(client.sessionId);
     console.log(`[world] ${client.sessionId} left — ${this.clients.length} online`);
   }
 
@@ -211,6 +216,23 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     me.state.yaw = t.state.yaw;
     me.queue.length = 0; // inputs predicted at the old place are meaningless now
     return Math.hypot(me.state.x - t.state.x, me.state.z - t.state.z) < 15;
+  }
+
+  /**
+   * Get on / off the mount. Everybody owns a horse; the server only checks the
+   * request makes sense: alive, on the ground, not spamming.
+   */
+  private setMount(sid: string, want: unknown): void {
+    const sp = this.sim.getPlayer(sid), ps = this.state.players.get(sid), pc = this.combat.players.get(sid);
+    if (!sp || !ps || typeof want !== 'boolean') return;
+    const now = this.clock.currentTime / 1000;
+    if (now - (this.lastMount.get(sid) ?? -Infinity) < MOUNT_COOLDOWN) return;
+    if (want === !!sp.state.mount) return;
+    if (want && (!pc || pc.dead || (!sp.state.grounded && sp.state.vy !== 0))) return; // not mid-jump
+    this.lastMount.set(sid, now);
+    sp.state.mount = want ? MOUNTS.findIndex((m) => m.id === 'horse') + 1 : 0;
+    ps.mount = sp.state.mount;
+    ps.emote = Emote.None;
   }
 
   /** Back to the start area after being knocked out. */
@@ -253,7 +275,12 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   }
 
   private update() {
-    for (const [id, pc] of this.combat.players) { const sp = this.sim.getPlayer(id); if (sp) sp.state.frozen = pc.dead; }
+    for (const [id, pc] of this.combat.players) {
+      const sp = this.sim.getPlayer(id);
+      if (!sp) continue;
+      sp.state.frozen = pc.dead;
+      if (pc.dead && sp.state.mount) sp.state.mount = 0; // knocked off the horse
+    }
     this.sim.tick();
     this.summonManager.update(TICK_DT);
     this.combat.update(TICK_DT);
@@ -262,6 +289,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       if (sp) this.copy(sp.state, ps, sp.lastSeq);
       const pc = this.combat.players.get(id);
       if (pc) { ps.hp = Math.ceil(pc.hp); ps.dead = pc.dead; ps.hitSeq = pc.hitSeq; }
+      if (sp) ps.mount = sp.state.mount ?? 0;
     }
     this.syncSummons();
   }

@@ -24,6 +24,8 @@ export const PlayerState = schema({
   dead: t.boolean().default(false),
   /** Increments each time the player is hit (plays the hit animation). */
   hitSeq: t.uint16().default(0),
+  /** Ridden mount: index + 1 in MOUNTS (0 = on foot). */
+  mount: t.uint8().default(0),
   /** Vertical speed and last processed input: only used by the owning client for reconciliation. */
   vy: t.float64(),
   ack: t.uint32(),

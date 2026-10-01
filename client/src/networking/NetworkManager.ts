@@ -10,7 +10,7 @@ export interface NetPlayer {
   id: string;
   x: number; y: number; z: number;
   yaw: number; anim: number; character: number; vy: number; ack: number; grounded: boolean;
-  name: string; emote: Emote; hp: number; maxHp: number; dead: boolean; hitSeq: number;
+  name: string; emote: Emote; hp: number; maxHp: number; dead: boolean; hitSeq: number; mount: number;
 }
 
 export interface NetworkEvents {
@@ -59,7 +59,7 @@ export class NetworkManager {
       const seen = new Set<string>();
       state.players.forEach((p: any, id: string) => {
         seen.add(id);
-        list.push({ id, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, character: p.character, vy: p.vy, ack: p.ack, grounded: p.grounded, name: p.name ?? '', emote: p.emote ?? Emote.None, hp: p.hp ?? 100, maxHp: p.maxHp ?? 100, dead: !!p.dead, hitSeq: p.hitSeq ?? 0 });
+        list.push({ id, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, character: p.character, vy: p.vy, ack: p.ack, grounded: p.grounded, name: p.name ?? '', emote: p.emote ?? Emote.None, hp: p.hp ?? 100, maxHp: p.maxHp ?? 100, dead: !!p.dead, hitSeq: p.hitSeq ?? 0, mount: p.mount ?? 0 });
       });
       for (const id of this.known) if (!seen.has(id)) this.events.onPlayerLeft(id);
       this.known = seen;
@@ -117,5 +117,10 @@ export class NetworkManager {
 
   sendEmote(emote: Emote): void {
     this.room?.send(MsgType.Emote, emote);
+  }
+
+  /** Asks to get on (true) or off (false) the horse; the server decides. */
+  sendMount(on: boolean): void {
+    this.room?.send(MsgType.Mount, on);
   }
 }

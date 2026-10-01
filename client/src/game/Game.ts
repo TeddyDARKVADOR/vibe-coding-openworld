@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import { Anim, CHARACTERS, CHUNK_SIZE, Emote, RENDER_LOAD_RADIUS, TICK_DT, chunkCoord, chunkKey, type ChatMessage } from '@openworld/shared';
+import { Anim, CHARACTERS, CHUNK_SIZE, Emote, mountByIndex, RENDER_LOAD_RADIUS, TICK_DT, chunkCoord, chunkKey, type ChatMessage } from '@openworld/shared';
 import { AssetLibrary } from '../assets/AssetLibrary.ts';
 import { ThirdPersonCamera } from '../camera/ThirdPersonCamera.ts';
 import { NetworkManager, serverUrl, type NetPlayer } from '../networking/NetworkManager.ts';
@@ -25,6 +25,7 @@ import { CombatFeedback } from '../combat/CombatFeedback.ts';
 import { AbilityBar } from '../ui/AbilityBar.ts';
 import { FriendsPanel } from '../ui/FriendsPanel.ts';
 import { PoiTracker } from '../poi/PoiTracker.ts';
+import { MountView } from '../mounts/MountView.ts';
 import { ChatBox, NameTag, PlayerList, compass } from './social.ts';
 import type { PlayerProfile } from './EntryScreen.ts';
 import { ui } from './ui.ts';
@@ -269,6 +270,7 @@ export class Game {
     for (const p of players) {
       if (p.id === this.net.sessionId) {
         this.player.reconcile(p);
+        this.syncMount(this.player.model, p.mount, p);
         this.updatePlayerHud(p);
         continue;
       }
@@ -280,6 +282,7 @@ export class Game {
       if (remote) {
         remote.push(t, p);
         remote.setCombat(p.hp, p.maxHp, p.dead, p.hitSeq);
+        this.syncMount(remote.model, p.mount, p);
         this.tags.get(p.id)?.setHp(p.dead ? 0 : p.hp, p.maxHp);
         if (remote.name !== p.name) { remote.name = p.name; this.tags.get(p.id)?.setName(p.name); }
       } else this.addRemote(p, t);
@@ -302,6 +305,7 @@ export class Game {
     else if (code === 'KeyE') this.useAbility(2);
     else if (code === 'KeyR') this.useAbility(3);
     else if (code === 'KeyX') this.toggleSummon();
+    else if (code === 'KeyG') this.net.sendMount(!this.player.state.mount);
     else if (code === 'Escape') { this.summonsPanel.toggle(false); this.friendsPanel.toggle(false); }
   }
 
@@ -346,6 +350,27 @@ export class Game {
     if (id === this.net.sessionId && this.player) return { x: this.player.state.x, y: this.player.state.y, z: this.player.state.z };
     const r = this.remotes.get(id);
     return r ? { ...r.world } : null;
+  }
+
+  /** Shows / hides the horse under a character when its synced mount changes (with dust and sound). */
+  private syncMount(model: CharacterModel, mount: number, at: { x: number; y: number; z: number }): void {
+    if (model.mountIndex === mount) return;
+    model.mountIndex = mount; // set now so the async load isn't started twice
+    const def = mountByIndex(mount);
+    this.vfx.play('mount', at.x, at.y, at.z);
+    if (!def) {
+      model.setMount(null, 0);
+      this.audio.play('dismount', at);
+      return;
+    }
+    this.audio.play(def.sounds.mount, at);
+    MountView.create(this.assets, def).then(
+      (view) => {
+        if (model.mountIndex !== mount) { view.dispose(); return; } // changed meanwhile
+        model.setMount(view, mount);
+      },
+      (e) => this.fail('Ressource introuvable', e instanceof Error ? e.message : String(e)),
+    );
   }
 
   private toggleSummon(): void {
@@ -541,9 +566,9 @@ export class Game {
     return {
       sessionId: this.net.sessionId, connection: this.connection, corrections: p.corrections, lastCorrection: p.lastCorrection,
       x: p.state.x, y: p.state.y, z: p.state.z, anim: p.state.anim,
-      emote: p.emote,
+      emote: p.emote, mount: p.state.mount ?? 0, riding: !!p.model.mount,
       players: this.lastSnapshot.map((s) => ({ id: s.id, name: s.name, x: s.x, y: s.y, z: s.z, character: s.character, emote: s.emote })),
-      remotes: [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, ...r.world, visible: r.model.root.visible })),
+      remotes: [...this.remotes.values()].map((r) => ({ id: r.id, name: r.name, ...r.world, visible: r.model.root.visible, riding: !!r.model.mount })),
       world: this.world.stats, origin: [this.originX, this.originZ], fps: this.fps,
       camera: { yaw: this.orbit.yaw, pitch: this.orbit.pitch },
     };

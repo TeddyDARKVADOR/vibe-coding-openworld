@@ -14,3 +14,4 @@ export * from './data/starters.ts';
 export * from './summons/SummonRegistry.ts';
 export * from './world/seeds.ts';
 export * from './world/poi.ts';
+export * from './mounts/MountRegistry.ts';

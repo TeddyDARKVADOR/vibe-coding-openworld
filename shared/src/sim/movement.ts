@@ -5,6 +5,7 @@
 import { GRAVITY, JUMP_SPEED, MAX_FALL_SPEED, RUN_SPEED, TICK_DT, WALK_SPEED } from '../constants.ts';
 import type { PhysicsWorld } from '../physics/PhysicsWorld.ts';
 import { Anim, INPUT_AXIS_MAX, type PlayerInput } from '../protocol.ts';
+import { mountByIndex } from '../mounts/MountRegistry.ts';
 
 export interface CharacterState {
   /** Feet position, world metres. */
@@ -19,6 +20,8 @@ export interface CharacterState {
   anim: Anim;
   /** Knocked out: inputs are ignored (same rule on client and server, so prediction stays exact). */
   frozen?: boolean;
+  /** Ridden mount (index + 1 in MOUNTS, 0 / undefined = on foot): changes the speeds. */
+  mount?: number;
 }
 
 export function createCharacterState(x: number, z: number): CharacterState {
@@ -40,10 +43,11 @@ export function stepCharacter(
   const len = Math.sqrt(mx * mx + mz * mz);
   if (len > 1) { mx /= len; mz /= len; }
   const moving = len > 0.05;
-  const speed = input.run ? RUN_SPEED : WALK_SPEED;
+  const mount = mountByIndex(s.mount);
+  const speed = mount ? (input.run ? mount.runSpeed : mount.walkSpeed) : input.run ? RUN_SPEED : WALK_SPEED;
 
   if (s.grounded && input.jump) {
-    s.vy = JUMP_SPEED;
+    s.vy = mount ? mount.jumpSpeed : JUMP_SPEED;
     s.grounded = false;
   }
 

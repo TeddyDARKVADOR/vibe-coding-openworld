@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { Anim, CHARACTER_SCALE, CHARACTERS, Emote, RUN_SPEED, WALK_SPEED } from '@openworld/shared';
 import { AssetLibrary, type CharacterTemplate } from '../assets/AssetLibrary.ts';
+import type { MountView } from '../mounts/MountView.ts';
 
 /** What the character is doing visually: a movement anim, or an emote while standing still. */
 type Pose = { clip: string; then?: string; timeScale: number };
@@ -35,6 +36,12 @@ export class CharacterModel {
   private clips = new Map<string, THREE.AnimationClip>();
   private currentPose: Pose | null = null;
   private currentAction: THREE.AnimationAction | null = null;
+  /** The character mesh (raised onto the saddle when riding). */
+  private body: THREE.Object3D;
+  /** Ridden mount, if any; mountIndex is the synced PlayerState.mount value. */
+  mount: MountView | null = null;
+  mountIndex = 0;
+  private ridePose: Pose | null = null;
 
   constructor(template: CharacterTemplate, readonly characterIndex: number) {
     const model = AssetLibrary.cloneCharacter(template);
@@ -50,6 +57,7 @@ export class CharacterModel {
       }
     });
     this.root.add(model);
+    this.body = model;
     this.head.position.y = 2.25;
     this.root.add(this.head);
     this.mixer = new THREE.AnimationMixer(model);
@@ -67,6 +75,24 @@ export class CharacterModel {
     return new CharacterModel(await assets.loadCharacter(name), characterIndex);
   }
 
+  /** Puts the character on a mount (or back on foot with null). */
+  setMount(view: MountView | null, index: number): void {
+    this.mount?.dispose();
+    this.mount = view;
+    this.mountIndex = index;
+    if (view) {
+      this.root.add(view.root);
+      this.body.position.set(0, view.def.rider.height, view.def.rider.forward);
+      this.head.position.y = 2.25 + view.def.rider.height * 0.8;
+      this.ridePose = { clip: view.def.rider.animation, timeScale: 1 };
+    } else {
+      this.body.position.set(0, 0, 0);
+      this.head.position.y = 2.25;
+      this.ridePose = null;
+    }
+    this.currentPose = null; // re-apply the pose
+  }
+
   private hitUntil = 0;
 
   /** Short "hit" reaction (KayKit Hit_A), on top of the current pose. */
@@ -80,7 +106,13 @@ export class CharacterModel {
   /** Plays the movement animation, or the emote when standing still. */
   setPose(anim: Anim, emote: Emote, fade = 0.2, dead = false): void {
     if (dead) {
+      if (this.mount) this.setMount(null, 0);
       if (this.currentPose !== DEAD_POSE) { this.currentPose = DEAD_POSE; this.fadeTo(DEAD_POSE.clip, 1, 0.15, false); }
+      return;
+    }
+    if (this.mount && this.ridePose) {
+      this.mount.setAnim(anim);
+      if (this.currentPose !== this.ridePose) { this.currentPose = this.ridePose; this.fadeTo(this.ridePose.clip, 1, fade, true); }
       return;
     }
     if (performance.now() < this.hitUntil) return;
@@ -108,9 +140,11 @@ export class CharacterModel {
 
   update(dt: number): void {
     this.mixer.update(dt);
+    this.mount?.update(dt);
   }
 
   dispose(): void {
+    this.mount?.dispose();
     this.mixer.stopAllAction();
     this.root.removeFromParent();
   }

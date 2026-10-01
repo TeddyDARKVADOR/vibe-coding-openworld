@@ -37,6 +37,8 @@ export enum MsgType {
   Friends = 'friends',
   /** server → player: FriendFeedback */
   FriendFeedback = 'frfb',
+  /** player → server: boolean, true = get on the mount, false = get off (validated by the server). */
+  Mount = 'mt',
 }
 
 /** Emotes, played with KayKit animations. Cancelled as soon as the character moves. */
