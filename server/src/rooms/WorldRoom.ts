@@ -14,10 +14,16 @@ import { Room, type Client } from 'colyseus';
 import RAPIER from '@dimforge/rapier3d-compat';
 import {
   Anim, CHARACTERS, EMOTE_COUNT, Emote, MsgType, PATCH_RATE, SPAWN_SPACING, TICK_DT, characterForSession, decodeInput,
-  sanitizeChat, sanitizeName, type ChatMessage, type JoinOptions,
+  sanitizeChat, sanitizeName, type ChatMessage, type JoinOptions, type OwnProfile,
 } from '@openworld/shared';
 import { PlayerState, WorldState } from './schema.ts';
 import { ServerSimulation } from '../simulation/ServerSimulation.ts';
+import { playerData } from '../services.ts';
+import { isValidPlayerId } from '../persistence/PlayerDataService.ts';
+import type { PlayerData } from '../persistence/PlayerData.ts';
+
+/** Positions are copied to the player data this often (written to disk by the store). */
+const SAVE_EVERY_MS = 5000;
 
 function parseSpawn(v: string | undefined): [number, number] {
   const [x, z] = (v ?? '').split(',').map(Number);
@@ -35,6 +41,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   /** Anti-spam: time of the last chat message per session. */
   private lastChat = new Map<string, number>();
   private guestCount = 0;
+  /** Persistent data of each connected session (guests have none). */
+  private data = new Map<string, PlayerData>();
+  private sessionOfPlayer = new Map<string, string>();
 
   async onCreate() {
     rapierReady ??= RAPIER.init();
@@ -67,20 +76,41 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       // Only while standing still (in the air the anim is Jump).
       ps.emote = sp.state.anim === Anim.Idle ? payload : Emote.None;
     });
+    this.clock.setInterval(() => this.saveAll(), SAVE_EVERY_MS);
     console.log('[world] room created');
   }
 
   onJoin(client: Client, options?: JoinOptions) {
-    const [sx, sz] = this.freeSpawnSlot();
-    const p = this.sim.addPlayer(client.sessionId, sx, sz);
+    // Identity: stable playerId from the browser → saved data. Without one: guest (nothing saved).
+    let data: PlayerData | null = null;
+    if (isValidPlayerId(options?.playerId)) {
+      const previous = this.sessionOfPlayer.get(options.playerId);
+      if (previous) this.replaceSession(previous); // same player reconnecting (reload after a network cut, 2nd device)
+      data = playerData.loadOrCreate(options.playerId).data;
+      this.data.set(client.sessionId, data);
+      this.sessionOfPlayer.set(data.playerId, client.sessionId);
+    }
+
+    const saved = data ? playerData.restorablePosition(data) : null;
+    const [sx, sz] = saved ? [saved.x, saved.z] : this.freeSpawnSlot();
+    const p = this.sim.addPlayer(client.sessionId, sx, sz, saved ? saved.y + 0.05 : undefined);
+    if (saved && data) p.state.yaw = data.lastRotation;
     const ps = new PlayerState();
     const c = options?.character;
-    ps.character = typeof c === 'number' && Number.isInteger(c) && c >= 0 && c < CHARACTERS.length ? c : characterForSession(client.sessionId);
-    ps.name = sanitizeName(options?.name) || `Voyageur ${++this.guestCount}`;
+    const validChar = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < CHARACTERS.length;
+    ps.character = validChar(c) ? c : data && validChar(data.character) ? data.character : characterForSession(client.sessionId);
+    ps.name = sanitizeName(options?.name) || data?.displayName || `Voyageur ${++this.guestCount}`;
+    if (data) {
+      data.displayName = ps.name;
+      data.character = ps.character;
+      playerData.save(data);
+      const profile: OwnProfile = { friendCode: data.friendCode, displayName: data.displayName, restored: !!saved };
+      client.send(MsgType.Profile, profile);
+    }
     ps.emote = Emote.None;
     this.copy(p.state, ps, -1);
     this.state.players.set(client.sessionId, ps);
-    console.log(`[world] ${client.sessionId} "${ps.name}" joined as ${CHARACTERS[ps.character]} at (${sx}, ${sz}) — ${this.clients.length} online`);
+    console.log(`[world] ${client.sessionId} "${ps.name}" joined as ${CHARACTERS[ps.character]} at (${p.state.x.toFixed(1)}, ${p.state.z.toFixed(1)})${saved ? ' (restored)' : ''} — ${this.clients.length} online`);
   }
 
   /** Spawn slots side by side around the origin: 0, +3, -3, +6, -6 ... m on X; first one nobody stands on. */
@@ -105,10 +135,40 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   }
 
   onLeave(client: Client) {
+    if (!this.state.players.has(client.sessionId)) return; // already replaced by a newer session
+    this.savePlayer(client.sessionId);
+    this.forget(client.sessionId);
     this.sim.removePlayer(client.sessionId);
     this.state.players.delete(client.sessionId);
     this.lastChat.delete(client.sessionId);
     console.log(`[world] ${client.sessionId} left — ${this.clients.length} online`);
+  }
+
+  /** Copies the current position of a player into its persistent data. */
+  private savePlayer(sessionId: string): void {
+    const data = this.data.get(sessionId);
+    const sp = this.sim.getPlayer(sessionId);
+    if (data && sp) playerData.savePosition(data, sp.state.x, sp.state.y, sp.state.z, sp.state.yaw);
+  }
+
+  private saveAll(): void {
+    for (const id of this.data.keys()) this.savePlayer(id);
+  }
+
+  private forget(sessionId: string): void {
+    const data = this.data.get(sessionId);
+    if (data && this.sessionOfPlayer.get(data.playerId) === sessionId) this.sessionOfPlayer.delete(data.playerId);
+    this.data.delete(sessionId);
+  }
+
+  /** A player connected again while its previous session was still in the world: drop the old one. */
+  private replaceSession(oldSessionId: string): void {
+    this.savePlayer(oldSessionId);
+    this.forget(oldSessionId);
+    this.sim.removePlayer(oldSessionId);
+    this.state.players.delete(oldSessionId);
+    this.lastChat.delete(oldSessionId);
+    this.clients.find((c) => c.sessionId === oldSessionId)?.leave(4100, 'connected elsewhere');
   }
 
   private update() {

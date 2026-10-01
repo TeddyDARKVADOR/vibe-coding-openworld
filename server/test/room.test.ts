@@ -1,3 +1,4 @@
+import './setup.ts';
 /**
  * Integration test: boots a real Colyseus server with WorldRoom and connects
  * two real SDK clients (same code path as the browser).

@@ -55,8 +55,10 @@ export class ServerSimulation {
 
   constructor(private readonly rapier: Rapier) {}
 
-  addPlayer(id: string, x: number, z: number): SimPlayer {
-    const p: SimPlayer = { id, state: createCharacterState(x, z), queue: [], lastSeq: -1, budget: MAX_INPUT_BURST, starved: 0, region: null, collider: null };
+  addPlayer(id: string, x: number, z: number, y?: number): SimPlayer {
+    const state = createCharacterState(x, z);
+    if (y !== undefined) state.y = y;
+    const p: SimPlayer = { id, state, queue: [], lastSeq: -1, budget: MAX_INPUT_BURST, starved: 0, region: null, collider: null };
     this.players.set(id, p);
     this.updateRegion(p);
     this.moveToFreeSpot(p);

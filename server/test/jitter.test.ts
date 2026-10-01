@@ -1,3 +1,4 @@
+import './setup.ts';
 /**
  * Regression test for "the character steps back when it stops": with jittery
  * networks inputs arrive in bursts. The server must process every input

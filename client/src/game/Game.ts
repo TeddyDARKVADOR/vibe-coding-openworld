@@ -46,6 +46,7 @@ export class Game {
   /** Players already announced in the chat ("X a rejoint le monde"). */
   private announced = new Map<string, string>();
   private hudTime = 0;
+  private pendingToast: string | null = null;
   private input!: Input;
   private net: NetworkManager;
   private world!: WorldManager;
@@ -72,10 +73,11 @@ export class Game {
       onPlayerLeft: (id) => this.removeRemote(id),
       onConnectionChange: (s) => this.onConnectionChange(s),
       onChat: (m) => this.onChat(m),
+      onProfile: (p) => { if (p.restored) this.pendingToast = 'Position précédente restaurée'; },
     });
   }
 
-  async start(profile: PlayerProfile): Promise<void> {
+  async start(profile: PlayerProfile & { playerId: string }): Promise<void> {
     this.createRenderer();
     this.input = new Input(this.renderer.domElement);
     this.input.onToggleDebug = () => { this.debugVisible = !this.debugVisible; if (!this.debugVisible) ui.debug(null); };
@@ -119,6 +121,7 @@ export class Game {
     for (const p of this.lastSnapshot) this.announced.set(p.id, p.name); // already here: no "joined" message
     this.onSnapshot(this.lastSnapshot, performance.now());
     this.chat.add('', `Bienvenue ${me.name} ! ${this.lastSnapshot.length - 1} autre(s) joueur(s) dans le monde.`, true);
+    if (this.pendingToast) this.chat.add('', this.pendingToast, true);
     this.minimap.visible = true;
 
     ui.hideLoading();
@@ -249,7 +252,12 @@ export class Game {
     this.remotes.delete(id);
   }
 
-  private onConnectionChange(s: 'connected' | 'reconnecting' | 'lost'): void {
+  private onConnectionChange(s: 'connected' | 'reconnecting' | 'lost' | 'replaced'): void {
+    if (s === 'replaced') {
+      this.connection = 'lost';
+      this.fail('Connecté ailleurs', 'Ce joueur vient de se connecter depuis une autre fenêtre ou un autre appareil.');
+      return;
+    }
     this.connection = s;
     if (s === 'reconnecting') ui.status('Connexion perdue — reconnexion…');
     else if (s === 'connected') { ui.status('Connecté', true); ui.hideError(); }

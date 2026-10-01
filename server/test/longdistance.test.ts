@@ -1,3 +1,4 @@
+import './setup.ts';
 /**
  * Long-distance test of the authoritative simulation: a bot runs several km
  * (turning when blocked), across chunk and physics-region borders, including

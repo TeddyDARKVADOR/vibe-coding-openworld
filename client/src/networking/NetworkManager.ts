@@ -3,7 +3,7 @@
  * plain callbacks and plain objects.
  */
 import { Client, type Room } from '@colyseus/sdk';
-import { DEFAULT_SERVER_PORT, Emote, MsgType, ROOM_NAME, encodeInput, type ChatMessage, type JoinOptions, type PlayerInput } from '@openworld/shared';
+import { DEFAULT_SERVER_PORT, Emote, MsgType, ROOM_NAME, encodeInput, type ChatMessage, type JoinOptions, type OwnProfile, type PlayerInput } from '@openworld/shared';
 
 export interface NetPlayer {
   id: string;
@@ -16,8 +16,9 @@ export interface NetworkEvents {
   /** Called on every state patch with all players (receive time in ms). */
   onSnapshot(players: NetPlayer[], t: number): void;
   onPlayerLeft(id: string): void;
-  onConnectionChange(state: 'connected' | 'reconnecting' | 'lost'): void;
+  onConnectionChange(state: 'connected' | 'reconnecting' | 'lost' | 'replaced'): void;
   onChat(msg: ChatMessage): void;
+  onProfile(p: OwnProfile): void;
 }
 
 export function serverUrl(): string {
@@ -33,6 +34,8 @@ export class NetworkManager {
   private room: Room | null = null;
   private known = new Set<string>();
   sessionId = '';
+  /** Private profile (friend code...) received after joining. */
+  profile: OwnProfile | null = null;
   ping = 0;
 
   constructor(private events: NetworkEvents) {}
@@ -56,9 +59,10 @@ export class NetworkManager {
       this.events.onSnapshot(list, t);
     });
     room.onMessage(MsgType.Chat, (m: ChatMessage) => this.events.onChat(m));
+    room.onMessage(MsgType.Profile, (p: OwnProfile) => { this.profile = p; this.events.onProfile(p); });
     room.onDrop(() => this.events.onConnectionChange('reconnecting'));
     room.onReconnect(() => this.events.onConnectionChange('connected'));
-    room.onLeave(() => this.events.onConnectionChange('lost'));
+    room.onLeave((code) => this.events.onConnectionChange(code === 4100 ? 'replaced' : 'lost'));
     room.onError((code, message) => console.warn('[net] room error', code, message));
 
     // Closing the tab is a real departure: leave immediately instead of

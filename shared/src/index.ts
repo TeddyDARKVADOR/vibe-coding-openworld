@@ -10,3 +10,4 @@ export * from './world/catalog.ts';
 export * from './world/chunkgen.ts';
 export * from './physics/PhysicsWorld.ts';
 export * from './sim/movement.ts';
+export * from './data/starters.ts';
