@@ -18,13 +18,19 @@ import {
 import { PlayerState, WorldState } from './schema.ts';
 import { ServerSimulation } from '../simulation/ServerSimulation.ts';
 
+function parseSpawn(v: string | undefined): [number, number] {
+  const [x, z] = (v ?? '').split(',').map(Number);
+  return Number.isFinite(x) && Number.isFinite(z) ? [x, z] : [0, 0];
+}
+
 let rapierReady: Promise<void> | null = null;
 
 export class WorldRoom extends Room<{ state: WorldState }> {
   maxClients = 64;
   state = new WorldState();
   private sim!: ServerSimulation;
-  private joinCount = 0;
+  /** Test-only: DEBUG_SPAWN="x,z" moves the spawn area (e.g. to check very large coordinates). */
+  private spawnCenter = parseSpawn(process.env.DEBUG_SPAWN);
 
   async onCreate() {
     rapierReady ??= RAPIER.init();
@@ -42,15 +48,34 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   }
 
   onJoin(client: Client) {
-    // Spawn slots around the origin: 0, +3, -3, +6, -6 ... metres on X.
-    const slot = this.joinCount++ % 16;
-    const offset = Math.ceil(slot / 2) * SPAWN_SPACING * (slot % 2 ? 1 : -1);
-    const p = this.sim.addPlayer(client.sessionId, offset, 0);
+    const [sx, sz] = this.freeSpawnSlot();
+    const p = this.sim.addPlayer(client.sessionId, sx, sz);
     const ps = new PlayerState();
     ps.character = characterForSession(client.sessionId);
     this.copy(p.state, ps, -1);
     this.state.players.set(client.sessionId, ps);
-    console.log(`[world] ${client.sessionId} joined as ${CHARACTERS[ps.character]} at (${offset}, 0) — ${this.clients.length} online`);
+    console.log(`[world] ${client.sessionId} joined as ${CHARACTERS[ps.character]} at (${sx}, ${sz}) — ${this.clients.length} online`);
+  }
+
+  /** Spawn slots side by side around the origin: 0, +3, -3, +6, -6 ... m on X; first one nobody stands on. */
+  private freeSpawnSlot(): [number, number] {
+    const [cx, cz] = this.spawnCenter;
+    for (let slot = 0; ; slot++) {
+      const x = cx + Math.ceil(slot / 2) * SPAWN_SPACING * (slot % 2 ? 1 : -1);
+      let free = true;
+      this.state.players.forEach((p) => { if (Math.hypot(p.x - x, p.z - cz) < SPAWN_SPACING / 2) free = false; });
+      if (free || slot > 32) return [x, cz];
+    }
+  }
+
+  /** Unexpected disconnection: keep the character in the world for a few seconds so the client can reconnect. */
+  onDrop(client: Client) {
+    console.log(`[world] ${client.sessionId} dropped, waiting for reconnection`);
+    this.allowReconnection(client, 20);
+  }
+
+  onReconnect(client: Client) {
+    console.log(`[world] ${client.sessionId} reconnected`);
   }
 
   onLeave(client: Client) {
@@ -67,7 +92,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     }
   }
 
-  private copy(s: { x: number; y: number; z: number; yaw: number; vy: number; anim: number }, ps: PlayerState, ack: number) {
+  private copy(s: { x: number; y: number; z: number; yaw: number; vy: number; anim: number; grounded: boolean }, ps: PlayerState, ack: number) {
+    ps.grounded = s.grounded;
     ps.x = s.x; ps.y = s.y; ps.z = s.z; ps.yaw = s.yaw; ps.vy = s.vy; ps.anim = s.anim;
     ps.ack = Math.max(0, ack);
   }

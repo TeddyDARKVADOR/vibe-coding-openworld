@@ -16,6 +16,20 @@ type World = InstanceType<Rapier['World']>;
 type Collider = ReturnType<World['createCollider']>;
 type KCC = ReturnType<World['createCharacterController']>;
 
+/**
+ * Physics worlds are anchored on a fixed grid of regions. Client prediction
+ * and server simulation MUST use the same origin for a given position:
+ * Rapier is float32, and different origins round differently, which would
+ * make the client's prediction drift from the server (measured: ~10 cm in
+ * a few seconds). With the same origin both are bit-identical.
+ */
+export const PHYSICS_REGION_SIZE = 4096;
+
+export function physicsRegionOf(x: number, z: number): { key: string; originX: number; originZ: number } {
+  const rx = Math.floor(x / PHYSICS_REGION_SIZE), rz = Math.floor(z / PHYSICS_REGION_SIZE);
+  return { key: `${rx},${rz}`, originX: (rx + 0.5) * PHYSICS_REGION_SIZE, originZ: (rz + 0.5) * PHYSICS_REGION_SIZE };
+}
+
 /** Collision groups: environment = bit 0, characters = bit 1. Characters never collide with each other. */
 const GROUP_ENV = (0x0001 << 16) | 0xffff;
 const GROUP_CHARACTER = (0x0002 << 16) | 0x0001;
@@ -107,6 +121,18 @@ export class PhysicsWorld {
     const grounded = this.controller.computedGrounded();
     collider.setTranslation({ x: x + m.x - this.originX, y: cy + m.y, z: z + m.z - this.originZ });
     return { dx: m.x, dy: m.y, dz: m.z, grounded };
+  }
+
+  /** True if a character capsule with its feet at (x, y, z) would not overlap any environment collider. */
+  isCapsuleFree(x: number, y: number, z: number): boolean {
+    this.updateQueries();
+    const shape = new this.rapier.Capsule(CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS);
+    let free = true;
+    this.world.intersectionsWithShape(
+      { x: x - this.originX, y: y + CAPSULE_HALF_HEIGHT + CAPSULE_RADIUS + 0.05, z: z - this.originZ }, { x: 0, y: 0, z: 0, w: 1 }, shape,
+      () => { free = false; return false; }, undefined, GROUP_CHARACTER,
+    );
+    return free;
   }
 
   /** Distance along a ray (world coords) to the first environment hit, or `maxDist`. */

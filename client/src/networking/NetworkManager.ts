@@ -1,0 +1,73 @@
+/**
+ * Everything Colyseus-specific lives here. The rest of the game only sees
+ * plain callbacks and plain objects.
+ */
+import { Client, type Room } from '@colyseus/sdk';
+import { DEFAULT_SERVER_PORT, MsgType, ROOM_NAME, encodeInput, type PlayerInput } from '@openworld/shared';
+
+export interface NetPlayer {
+  id: string;
+  x: number; y: number; z: number;
+  yaw: number; anim: number; character: number; vy: number; ack: number; grounded: boolean;
+}
+
+export interface NetworkEvents {
+  /** Called on every state patch with all players (receive time in ms). */
+  onSnapshot(players: NetPlayer[], t: number): void;
+  onPlayerLeft(id: string): void;
+  onConnectionChange(state: 'connected' | 'reconnecting' | 'lost'): void;
+}
+
+export function serverUrl(): string {
+  const param = new URLSearchParams(location.search).get('server');
+  if (param) return param;
+  if (import.meta.env.VITE_SERVER_URL) return import.meta.env.VITE_SERVER_URL as string;
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  // Dev: Vite on :5173, Colyseus on :2567. Production: the server also serves the page.
+  return import.meta.env.DEV ? `${proto}://${location.hostname}:${DEFAULT_SERVER_PORT}` : `${proto}://${location.host}`;
+}
+
+export class NetworkManager {
+  private room: Room | null = null;
+  private known = new Set<string>();
+  sessionId = '';
+  ping = 0;
+
+  constructor(private events: NetworkEvents) {}
+
+  async connect(): Promise<void> {
+    const client = new Client(serverUrl());
+    const room = await client.joinOrCreate(ROOM_NAME);
+    this.room = room;
+    this.sessionId = room.sessionId;
+
+    room.onStateChange((state: any) => {
+      const t = performance.now();
+      const list: NetPlayer[] = [];
+      const seen = new Set<string>();
+      state.players.forEach((p: any, id: string) => {
+        seen.add(id);
+        list.push({ id, x: p.x, y: p.y, z: p.z, yaw: p.yaw, anim: p.anim, character: p.character, vy: p.vy, ack: p.ack, grounded: p.grounded });
+      });
+      for (const id of this.known) if (!seen.has(id)) this.events.onPlayerLeft(id);
+      this.known = seen;
+      this.events.onSnapshot(list, t);
+    });
+    room.onDrop(() => this.events.onConnectionChange('reconnecting'));
+    room.onReconnect(() => this.events.onConnectionChange('connected'));
+    room.onLeave(() => this.events.onConnectionChange('lost'));
+    room.onError((code, message) => console.warn('[net] room error', code, message));
+
+    // Closing the tab is a real departure: leave immediately instead of
+    // waiting for the server-side reconnection window to expire.
+    addEventListener('pagehide', () => { room.leave(true).catch(() => {}); });
+
+    const measure = () => room.ping((ms) => { this.ping = ms; });
+    measure();
+    setInterval(measure, 2000);
+  }
+
+  sendInput(input: PlayerInput): void {
+    this.room?.send(MsgType.Input, encodeInput(input));
+  }
+}

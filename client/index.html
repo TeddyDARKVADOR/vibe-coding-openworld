@@ -1,1 +1,18 @@
-<!doctype html><html><body><script type="module" src="/src/main.ts"></script></body></html>
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open World</title>
+    
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="loading" class="loading"><div class="loading-box"><div class="loading-title">Chargement du monde…</div><div class="bar"><div id="loading-bar"></div></div><div id="loading-text"></div></div></div>
+    <div id="status" class="status hidden"></div>
+    <div id="hint" class="hint hidden">Clic pour tourner la caméra · ZQSD/WASD pour marcher · Maj pour courir · Espace pour sauter · F3 debug</div>
+    <pre id="debug" class="debug hidden"></pre>
+    <div id="error" class="error hidden"><div class="error-box"><div class="error-title" id="error-title"></div><div id="error-text"></div><button id="error-retry">Réessayer</button></div></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

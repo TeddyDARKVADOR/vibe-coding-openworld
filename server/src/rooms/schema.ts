@@ -6,7 +6,7 @@ import { schema, t, type SchemaType } from '@colyseus/schema';
  */
 export const PlayerState = schema({
   x: t.float64(),
-  y: t.float32(),
+  y: t.float64(),
   z: t.float64(),
   /** Facing angle about +Y. */
   yaw: t.float32(),
@@ -15,8 +15,9 @@ export const PlayerState = schema({
   /** Index into CHARACTERS. */
   character: t.uint8(),
   /** Vertical speed and last processed input: only used by the owning client for reconciliation. */
-  vy: t.float32(),
+  vy: t.float64(),
   ack: t.uint32(),
+  grounded: t.boolean(),
 }, 'PlayerState');
 export type PlayerState = SchemaType<typeof PlayerState>;
 

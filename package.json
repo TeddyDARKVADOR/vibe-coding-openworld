@@ -13,7 +13,7 @@
     "build": "npm run build -w client",
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
-    "test": "npm test -w shared && npm test -w server"
+    "test": "npm test -w shared && npm test -w client && npm test -w server"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",

@@ -1,8 +1,9 @@
 /**
  * Authoritative movement simulation.
  *
- * Physics runs in "regions" of REGION_SIZE metres, each with its own Rapier
- * world whose origin is the region centre (Rapier uses float32). A player
+ * Physics runs in "regions" of PHYSICS_REGION_SIZE metres, each with its own
+ * Rapier world whose origin is the region centre (Rapier uses float32) — the
+ * same origins the client uses for prediction. A player
  * belongs to the region containing it; the region loads the colliders of the
  * chunks around its players (deterministically generated, identical to the
  * client) and frees them when nobody is near anymore.
@@ -12,11 +13,10 @@
  */
 import type { Rapier } from '@openworld/shared';
 import {
-  Anim, PHYSICS_RADIUS, PhysicsWorld, chunkCoord, chunkKey, createCharacterState, generateChunk, stepCharacter,
+  Anim, PHYSICS_RADIUS, PhysicsWorld, physicsRegionOf, chunkCoord, chunkKey, createCharacterState, generateChunk, stepCharacter,
   type CharacterState, type ChunkData, type PlayerInput,
 } from '@openworld/shared';
 
-const REGION_SIZE = 4096;
 const MAX_QUEUED_INPUTS = 12;
 /** Input budget: one input per tick on average, small burst allowed to absorb network jitter. */
 const MAX_INPUT_BURST = 4;
@@ -53,7 +53,24 @@ export class ServerSimulation {
     const p: SimPlayer = { id, state: createCharacterState(x, z), queue: [], lastSeq: -1, budget: MAX_INPUT_BURST, starved: 0, region: null, collider: null };
     this.players.set(id, p);
     this.updateRegion(p);
+    this.moveToFreeSpot(p);
     return p;
+  }
+
+  /** Spiral search for the closest spot where the character doesn't overlap a house, tree, lake... */
+  private moveToFreeSpot(p: SimPlayer): void {
+    const x0 = p.state.x, z0 = p.state.z;
+    for (let ring = 0; ring <= 40; ring++) {
+      const n = Math.max(1, ring * 6);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const x = x0 + Math.cos(a) * ring * 1.5, z = z0 + Math.sin(a) * ring * 1.5;
+        p.state.x = x; p.state.z = z;
+        this.updateRegion(p);
+        if (p.region!.physics.isCapsuleFree(x, p.state.y, z)) return;
+      }
+    }
+    p.state.x = x0; p.state.z = z0;
   }
 
   getPlayer(id: string): SimPlayer | undefined {
@@ -102,13 +119,12 @@ export class ServerSimulation {
   // ------------------------------------------------------------------ regions
 
   private updateRegion(p: SimPlayer): void {
-    const rx = Math.floor(p.state.x / REGION_SIZE), rz = Math.floor(p.state.z / REGION_SIZE);
-    const key = `${rx},${rz}`;
+    const { key, originX, originZ } = physicsRegionOf(p.state.x, p.state.z);
     if (p.region?.key !== key) {
       this.leaveRegion(p);
       let region = this.regions.get(key);
       if (!region) {
-        region = { key, physics: new PhysicsWorld(this.rapier, (rx + 0.5) * REGION_SIZE, (rz + 0.5) * REGION_SIZE), players: new Set() };
+        region = { key, physics: new PhysicsWorld(this.rapier, originX, originZ), players: new Set() };
         this.regions.set(key, region);
       }
       region.players.add(p);
