@@ -8,8 +8,11 @@ import { Anim } from '@openworld/shared';
 import type { CharacterModel } from './CharacterModel.ts';
 import { lerpAngle } from './PlayerController.ts';
 
-const INTERP_DELAY = 120; // ms, ~2 patches at 20 Hz
-const MAX_EXTRAPOLATION = 150; // ms
+/**
+ * ~3 patches at 20 Hz. No extrapolation: guessing ahead when a packet is late
+ * makes a player who just stopped overshoot and snap back.
+ */
+const INTERP_DELAY = 140; // ms
 
 interface Snapshot { t: number; x: number; y: number; z: number; yaw: number; anim: Anim }
 
@@ -43,16 +46,14 @@ export class RemotePlayer {
       c = b[i];
       if (rt > b[b.length - 1].t) { a = b[Math.max(0, b.length - 2)]; c = b[b.length - 1]; }
     }
-    let t = c.t > a.t ? (rt - a.t) / (c.t - a.t) : 1;
-    // Limited extrapolation if packets are late, then hold.
-    t = Math.min(t, 1 + MAX_EXTRAPOLATION / Math.max(1, c.t - a.t));
-    if (c.anim === Anim.Idle || a === c) t = Math.min(t, 1);
+    // Late packets: hold the last known position instead of extrapolating.
+    const t = c.t > a.t ? Math.min(1, Math.max(0, (rt - a.t) / (c.t - a.t))) : 1;
     this.world.x = a.x + (c.x - a.x) * t;
     this.world.y = a.y + (c.y - a.y) * t;
     this.world.z = a.z + (c.z - a.z) * t;
     const root = this.model.root;
     root.position.set(this.world.x - originX, this.world.y, this.world.z - originZ);
-    root.rotation.y = lerpAngle(root.rotation.y, lerpAngle(a.yaw, c.yaw, Math.min(1, t)), Math.min(1, dt * 14));
+    root.rotation.y = lerpAngle(root.rotation.y, lerpAngle(a.yaw, c.yaw, t), Math.min(1, dt * 14));
     this.model.play(t < 0.5 ? a.anim : c.anim);
     this.model.update(dt);
   }

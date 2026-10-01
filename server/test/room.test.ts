@@ -6,7 +6,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { defineRoom, defineServer } from 'colyseus';
 import { Client } from '@colyseus/sdk';
-import { MsgType, ROOM_NAME, encodeInput, INPUT_AXIS_MAX, TICK_DT } from '@openworld/shared';
+import { MsgType, ROOM_NAME, encodeInput, INPUT_AXIS_MAX, RUN_SPEED, TICK_DT } from '@openworld/shared';
 import { WorldRoom } from '../src/rooms/WorldRoom.ts';
 
 const PORT = 25670 + Math.floor(Math.random() * 1000);
@@ -47,12 +47,13 @@ test('two players share the world, see each other move, and leave cleanly', asyn
   // Positions are identical on both clients (same global coordinates).
   assert.equal(players(a).get(a.sessionId).z, aOnB.z);
 
-  // Cheating: a client sending 200 inputs at once cannot move faster than the tick budget allows.
+  // Cheating: a client sending 200 inputs at once (6.7 s of running) can't move faster than
+  // real time: at most the 1 s of catch-up slack + the ticks elapsed while we wait (0.5 s).
   const before = players(b).get(a.sessionId).z;
   for (let seq = 31; seq <= 230; seq++) a.send(MsgType.Input, encodeInput({ seq, mx: 0, mz: -INPUT_AXIS_MAX, run: true, jump: false }));
   await sleep(500);
   const moved = before - players(b).get(a.sessionId).z;
-  assert.ok(moved < 12 * 6.8 / 30 + 0.5, `input flood is capped (moved ${moved.toFixed(2)} m)`);
+  assert.ok(moved < RUN_SPEED * 1.7, `input flood is capped (moved ${moved.toFixed(2)} m)`);
 
   // B leaves → disappears from A.
   await b.leave();

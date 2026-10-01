@@ -17,9 +17,15 @@ import {
   type CharacterState, type ChunkData, type PlayerInput,
 } from '@openworld/shared';
 
-const MAX_QUEUED_INPUTS = 12;
-/** Input budget: one input per tick on average, small burst allowed to absorb network jitter. */
-const MAX_INPUT_BURST = 4;
+/**
+ * Input budget: a player may never be simulated faster than real time
+ * (+1 input per tick), but unused budget is kept for up to 1 s so a backlog
+ * caused by network jitter is drained right away instead of lingering.
+ * Inputs are only dropped beyond 3 s of backlog: dropping inputs the client
+ * already predicted would make the character snap backwards.
+ */
+const MAX_QUEUED_INPUTS = 90;
+const MAX_INPUT_BURST = 30;
 
 type Collider = ReturnType<PhysicsWorld['createCharacterCollider']>;
 

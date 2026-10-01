@@ -32,18 +32,22 @@ export function physicsRegionOf(x: number, z: number): { key: string; originX: n
 
 /**
  * Collision groups (Rapier: 16 bits membership << 16 | 16 bits filter):
- * environment = bit 0, characters = bit 1, camera-only (foliage) = bit 2.
- * Characters only interact with the environment (never with each other or foliage).
+ * environment = bit 0, characters = bit 1. Characters never collide with each other.
  */
 const GROUP_ENV = (0x0001 << 16) | 0xffff;
-const GROUP_CAMERA_ONLY = (0x0004 << 16) | 0xffff;
 const GROUP_CHARACTER = (0x0002 << 16) | 0x0001;
-const GROUP_CAMERA_RAY = (0x0002 << 16) | 0x0005;
 
 export class PhysicsWorld {
   readonly world: World;
   readonly controller: KCC;
-  private chunks = new Map<string, Collider[]>();
+  /**
+   * Camera-only colliders (foliage) live in a separate Rapier world: even
+   * filtered out by collision groups, their presence slightly changes the
+   * character controller's results, which would break the exact match
+   * between client prediction and server simulation.
+   */
+  private cameraWorld: World | null = null;
+  private chunks = new Map<string, { world: World; collider: Collider }[]>();
   private dirty = true;
 
   constructor(
@@ -51,7 +55,7 @@ export class PhysicsWorld {
     readonly originX: number,
     readonly originZ: number,
     /** Create camera-only colliders (client). The server doesn't need them. */
-    private withCameraColliders = false,
+    withCameraColliders = false,
   ) {
     this.world = new rapier.World({ x: 0, y: 0, z: 0 }); // gravity handled by the character code
     const c = this.world.createCharacterController(0.02);
@@ -63,6 +67,7 @@ export class PhysicsWorld {
     c.enableSnapToGround(0.35);
     c.setApplyImpulsesToDynamicBodies(false);
     this.controller = c;
+    if (withCameraColliders) this.cameraWorld = new rapier.World({ x: 0, y: 0, z: 0 });
   }
 
   hasChunk(key: string): boolean {
@@ -80,16 +85,17 @@ export class PhysicsWorld {
   addChunk(key: string, specs: readonly ColliderSpec[]): void {
     if (this.chunks.has(key)) return;
     const R = this.rapier;
-    const list: Collider[] = [];
+    const list: { world: World; collider: Collider }[] = [];
     for (const s of specs) {
-      if (s.cameraOnly && !this.withCameraColliders) continue;
+      const world = s.cameraOnly ? this.cameraWorld : this.world;
+      if (!world) continue;
       let desc: ReturnType<typeof R.ColliderDesc.cuboid> | null;
       if (s.shape === 'cuboid') desc = R.ColliderDesc.cuboid(s.hx, s.hy, s.hz).setRotation(quatY30(s.rot30));
       else if (s.shape === 'cylinder') desc = R.ColliderDesc.cylinder(s.halfHeight, s.radius);
       else desc = R.ColliderDesc.convexHull(new Float32Array(s.points))?.setRotation(quatY30(s.rot30)) ?? null;
       if (!desc) continue;
-      desc.setTranslation(s.x - this.originX, s.y, s.z - this.originZ).setCollisionGroups(s.cameraOnly ? GROUP_CAMERA_ONLY : GROUP_ENV);
-      list.push(this.world.createCollider(desc));
+      desc.setTranslation(s.x - this.originX, s.y, s.z - this.originZ).setCollisionGroups(GROUP_ENV);
+      list.push({ world, collider: world.createCollider(desc) });
     }
     this.chunks.set(key, list);
     this.dirty = true;
@@ -98,7 +104,7 @@ export class PhysicsWorld {
   removeChunk(key: string): void {
     const list = this.chunks.get(key);
     if (!list) return;
-    for (const c of list) this.world.removeCollider(c, false);
+    for (const { world, collider } of list) world.removeCollider(collider, false);
     this.chunks.delete(key);
     this.dirty = true;
   }
@@ -107,6 +113,7 @@ export class PhysicsWorld {
   updateQueries(): void {
     if (!this.dirty) return;
     this.world.step();
+    this.cameraWorld?.step();
     this.dirty = false;
   }
 
@@ -150,17 +157,23 @@ export class PhysicsWorld {
 
   /**
    * Distance along a ray (world coords) to the first environment hit, or
-   * `maxDist`. `forCamera` also stops on camera-only colliders (foliage).
+   * `maxDist`. `forCamera` also stops on camera-only colliders (foliage) if this world has them.
    */
   raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxDist: number, forCamera = false): number {
     this.updateQueries();
     const ray = new this.rapier.Ray({ x: ox - this.originX, y: oy, z: oz - this.originZ }, { x: dx, y: dy, z: dz });
-    const hit = this.world.castRay(ray, maxDist, true, undefined, forCamera ? GROUP_CAMERA_RAY : GROUP_CHARACTER);
-    return hit ? hit.timeOfImpact : maxDist;
+    const hit = this.world.castRay(ray, maxDist, true, undefined, GROUP_CHARACTER);
+    let d = hit ? hit.timeOfImpact : maxDist;
+    if (forCamera && this.cameraWorld) {
+      const h2 = this.cameraWorld.castRay(ray, d, true);
+      if (h2) d = Math.min(d, h2.timeOfImpact);
+    }
+    return d;
   }
 
   free(): void {
     this.world.free();
+    this.cameraWorld?.free();
     this.chunks.clear();
   }
 }

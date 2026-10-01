@@ -35,8 +35,8 @@ export const TICK_DT = 1 / TICK_RATE;
 export const PATCH_RATE = 20;
 
 /** Character movement tuning (metres, seconds). */
-export const WALK_SPEED = 3.2;
-export const RUN_SPEED = 6.8;
+export const WALK_SPEED = 4.0;
+export const RUN_SPEED = 8.5;
 export const GRAVITY = -20;
 export const JUMP_SPEED = 6.2;
 export const MAX_FALL_SPEED = 40;
