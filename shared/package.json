@@ -1,0 +1,21 @@
+{
+  "name": "@openworld/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15"
+  }
+}

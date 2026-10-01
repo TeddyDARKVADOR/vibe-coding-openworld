@@ -1,0 +1,25 @@
+{
+  "name": "@openworld/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@colyseus/schema": "^5.0.35",
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "@openworld/shared": "*",
+    "colyseus": "^0.18.9",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "^0.18.4",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.23.15"
+  }
+}
