@@ -18,6 +18,7 @@ import {
 } from '@openworld/shared';
 import { PlayerState, SummonState, WorldState } from './schema.ts';
 import { SummonManager } from '../summons/SummonManager.ts';
+import { CombatSystem } from '../combat/CombatSystem.ts';
 import { ServerSimulation } from '../simulation/ServerSimulation.ts';
 import { playerData } from '../services.ts';
 import { isValidPlayerId } from '../persistence/PlayerDataService.ts';
@@ -38,6 +39,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   state = new WorldState();
   private sim!: ServerSimulation;
   private summonManager!: SummonManager;
+  private combat!: CombatSystem;
   /** Test-only: DEBUG_SPAWN="x,z" moves the spawn area (e.g. to check very large coordinates). */
   private spawnCenter = parseSpawn(process.env.DEBUG_SPAWN);
   /** Anti-spam: time of the last chat message per session. */
@@ -66,6 +68,18 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       const input = decodeInput(payload);
       if (input) this.sim.queueInput(client.sessionId, input);
     });
+
+    this.combat = new CombatSystem({
+      sim: this.sim,
+      now: () => this.clock.currentTime / 1000,
+      nameOf: (id) => this.state.players.get(id)?.name ?? '?',
+      broadcastFx: (e) => this.broadcast(MsgType.AbilityFx, e),
+      broadcastDamage: (e) => this.broadcast(MsgType.Damage, e),
+      broadcastDeath: (e) => this.broadcast(MsgType.Death, e),
+      respawn: (id) => this.respawn(id),
+    }, this.summonManager);
+    this.onMessage(MsgType.Target, (client, ref: unknown) => this.combat.setTarget(client.sessionId, ref));
+    this.onMessage(MsgType.Ability, (client, index: unknown) => this.combat.useAbility(client.sessionId, index));
 
     this.onMessage(MsgType.Summon, (client, req: unknown) => {
       if (!req || typeof req !== 'object') return;
@@ -132,6 +146,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     ps.emote = Emote.None;
     this.copy(p.state, ps, -1);
     this.state.players.set(client.sessionId, ps);
+    this.combat.addPlayer(client.sessionId);
     this.summonManager.sendCollection(client.sessionId);
     console.log(`[world] ${client.sessionId} "${ps.name}" joined as ${CHARACTERS[ps.character]} at (${p.state.x.toFixed(1)}, ${p.state.z.toFixed(1)})${saved ? ' (restored)' : ''} — ${this.clients.length} online`);
   }
@@ -161,11 +176,22 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     if (!this.state.players.has(client.sessionId)) return; // already replaced by a newer session
     this.savePlayer(client.sessionId);
     this.summonManager.ownerLeft(client.sessionId);
+    this.combat.removePlayer(client.sessionId);
     this.forget(client.sessionId);
     this.sim.removePlayer(client.sessionId);
     this.state.players.delete(client.sessionId);
     this.lastChat.delete(client.sessionId);
     console.log(`[world] ${client.sessionId} left — ${this.clients.length} online`);
+  }
+
+  /** Back to the start area after being knocked out. */
+  private respawn(id: string): void {
+    const sp = this.sim.getPlayer(id);
+    if (!sp) return;
+    const [x, z] = this.freeSpawnSlot();
+    this.sim.teleport(sp, x, z);
+    sp.state.frozen = false;
+    sp.state.vy = 0;
   }
 
   /** Copies the current position of a player into its persistent data. */
@@ -189,6 +215,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private replaceSession(oldSessionId: string): void {
     this.savePlayer(oldSessionId);
     this.summonManager.ownerLeft(oldSessionId);
+    this.combat.removePlayer(oldSessionId);
     this.forget(oldSessionId);
     this.sim.removePlayer(oldSessionId);
     this.state.players.delete(oldSessionId);
@@ -197,11 +224,15 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   }
 
   private update() {
+    for (const [id, pc] of this.combat.players) { const sp = this.sim.getPlayer(id); if (sp) sp.state.frozen = pc.dead; }
     this.sim.tick();
     this.summonManager.update(TICK_DT);
+    this.combat.update(TICK_DT);
     for (const [id, ps] of this.state.players) {
       const sp = this.sim.getPlayer(id);
       if (sp) this.copy(sp.state, ps, sp.lastSeq);
+      const pc = this.combat.players.get(id);
+      if (pc) { ps.hp = Math.ceil(pc.hp); ps.dead = pc.dead; ps.hitSeq = pc.hitSeq; }
     }
     this.syncSummons();
   }

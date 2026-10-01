@@ -114,6 +114,7 @@ export class SummonManager {
         if (now >= e.removeAt) this.remove(e.ownerId);
         continue;
       }
+      if (e.dash) continue; // moved by CombatSystem
       if (e.mode === SummonMode.Spawning) {
         if (now >= e.spawnUntil) e.mode = SummonMode.Idle;
         this.host.sim.moveBody(e.body, 0, 0, dt);

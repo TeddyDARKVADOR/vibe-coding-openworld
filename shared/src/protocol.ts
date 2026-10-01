@@ -21,6 +21,16 @@ export enum MsgType {
   Summon = 'sm',
   /** server → owner: CollectionInfo */
   Collection = 'col',
+  /** client → server: target reference ("p:<sessionId>", "s:<ownerSessionId>" or "") */
+  Target = 'tg',
+  /** client → server: ability index 0..3 (0 = basic attack order) */
+  Ability = 'ab',
+  /** server → all: AbilityEvent */
+  AbilityFx = 'fx',
+  /** server → all: DamageEvent */
+  Damage = 'dmg',
+  /** server → all: DeathEvent */
+  Death = 'death',
 }
 
 /** Emotes, played with KayKit animations. Cancelled as soon as the character moves. */
@@ -148,3 +158,52 @@ export interface CollectionInfo {
 }
 
 export const SUMMON_RECALL_DELAY = 8;
+
+// ------------------------------------------------------------------ combat
+
+export const PLAYER_MAX_HP = 100;
+export const PLAYER_RESPAWN_DELAY = 4;
+/** An owner can only target things this close to him (metres). */
+export const TARGET_RANGE = 40;
+
+/** Something that can be hit: a player or a summon (identified by its owner). */
+export type TargetRef = `p:${string}` | `s:${string}`;
+
+export interface AbilityEvent {
+  /** Owner of the summon using the ability. */
+  owner: string;
+  summon: string;
+  ability: number;
+  type: string;
+  vfx: string;
+  sound: string;
+  cooldown: number;
+  from: { x: number; y: number; z: number };
+  target: string;
+  /** Projectiles: flight time in seconds. */
+  flight?: number;
+  /** AoE radius. */
+  radius?: number;
+}
+
+export interface DamageEvent {
+  target: string;
+  amount: number;
+  hp: number;
+  maxHp: number;
+  x: number; y: number; z: number;
+  /** Owner of the attacking summon. */
+  by: string;
+}
+
+export interface DeathEvent {
+  target: string;
+  by: string;
+  victimName: string;
+  killerName: string;
+}
+
+/** Damage after the attacker's attack stat and the target's defense. */
+export function computeDamage(base: number, attack: number, defense: number): number {
+  return Math.max(1, Math.round(base * (attack / 10) * (100 / (100 + Math.max(0, defense)))));
+}

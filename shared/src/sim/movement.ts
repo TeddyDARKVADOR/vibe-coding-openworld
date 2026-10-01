@@ -17,6 +17,8 @@ export interface CharacterState {
   /** Facing angle about +Y (0 = facing +Z). */
   yaw: number;
   anim: Anim;
+  /** Knocked out: inputs are ignored (same rule on client and server, so prediction stays exact). */
+  frozen?: boolean;
 }
 
 export function createCharacterState(x: number, z: number): CharacterState {
@@ -32,6 +34,7 @@ export function stepCharacter(
   input: PlayerInput,
   dt = TICK_DT,
 ): void {
+  if (s.frozen) input = { ...input, mx: 0, mz: 0, jump: false, run: false };
   let mx = clampAxis(input.mx) / INPUT_AXIS_MAX;
   let mz = clampAxis(input.mz) / INPUT_AXIS_MAX;
   const len = Math.sqrt(mx * mx + mz * mz);

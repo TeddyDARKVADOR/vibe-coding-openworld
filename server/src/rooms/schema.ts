@@ -18,6 +18,12 @@ export const PlayerState = schema({
   name: t.string(),
   /** Current Emote (0 = none). */
   emote: t.uint8().default(0),
+  hp: t.uint16().default(100),
+  maxHp: t.uint16().default(100),
+  /** Knocked out (waiting to respawn). */
+  dead: t.boolean().default(false),
+  /** Increments each time the player is hit (plays the hit animation). */
+  hitSeq: t.uint16().default(0),
   /** Vertical speed and last processed input: only used by the owning client for reconciliation. */
   vy: t.float64(),
   ack: t.uint32(),

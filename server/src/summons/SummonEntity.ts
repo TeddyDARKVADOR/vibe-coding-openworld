@@ -24,6 +24,9 @@ export interface SummonEntity {
   /** Ability the owner asked for, executed once in range. */
   pending: { index: number; until: number } | null;
   spawnUntil: number;
+  /** Dash in progress (velocity until a time, target to hit at the end). */
+  dash: { vx: number; vz: number; until: number; hit: string; damage: number } | null;
+  lastHitAt: number;
   /** When dead: removal time. */
   removeAt: number;
 }
@@ -31,7 +34,7 @@ export interface SummonEntity {
 export function createSummonEntity(ownerId: string, def: SummonDefinition, body: SimBody, now: number): SummonEntity {
   return {
     ownerId, def, body, hp: def.stats.maxHp, mode: SummonMode.Spawning, action: 'spawn', actionSeq: 1, actionUntil: now + 1,
-    target: '', readyAt: def.abilities.map(() => 0), buffs: [], pending: null, spawnUntil: now + 1.1, removeAt: 0,
+    target: '', readyAt: def.abilities.map(() => 0), buffs: [], pending: null, spawnUntil: now + 1.1, removeAt: 0, dash: null, lastHitAt: 0,
   };
 }
 
